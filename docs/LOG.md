@@ -2218,3 +2218,16 @@ map, daily playlist and scenes.
   `-gpu swangle_indirect -feature -Vulkan,-GLDirectMem` (`target/scratch/tools/emu.sh`). It does not deliver back
   gesture progress, so the in-app follow-the-finger animation is checked on the user's phone only.
 - Checks: tests 256, clippy clean (Linux, Windows, bench), desktop release builds.
+
+## 2026-10-23 (45) — Git repository, README, first release
+
+- Private repository `LycorisWave/nyanoto` (branch `main`). Commits carry no tool attribution, at the owner's request.
+  License: GPL-3.0-or-later (`LICENSE`, `license.workspace` in every crate). README in Russian and English with
+  screenshots (`docs/screenshots/`): desktop shots taken from a copy of the owner's database with volume 0,
+  phone shots from the owner.
+- Release `v0.1.3-pre-alpha` (pre-release) with three assets:
+  - Linux x86_64 tarball: the server-built binary (glibc ≥ 2.35), `ffmpeg/` with the own FFmpeg 7.1 audio build
+    (RUNPATH `$ORIGIN`), desktop file, icon, LGPL text and source link;
+  - Windows x86_64 zip: `x86_64-pc-windows-gnullvm` release cross-built on the server; needs `libc++.dll` and
+    `libunwind.dll` from llvm-mingw (shipped with its license), FFmpeg DLLs need only UCRT. Not run on real Windows;
+  - Android arm64 APK (the release build after the Back fixes).
