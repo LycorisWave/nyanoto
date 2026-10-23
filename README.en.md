@@ -1,149 +1,128 @@
 # Nyanoto
 
-A music player for your own collection of files. Linux, Windows and Android.
+A player for music you keep as files. Runs on Linux, Windows and Android.
 
-[Русская версия](README.md)
+[Русский](README.md)
 
-> Status: **0.1.3-pre-alpha**. There are no ready-made builds yet; build it from source (see "Building").
-> Most of the work happens on Linux; Windows and Android are built from the same code.
+Version 0.1.3, pre-alpha. There are no ready-made builds yet, so you'll have to build it yourself;
+instructions are below. I work mostly on Linux. Windows and Android are built from the same code,
+but I test them less often.
 
 ![Full-screen player](docs/screenshots/desktop-player.jpg)
 
-## Why
+I wanted a player that opens a big music folder fast, plays almost any format and doesn't eat
+memory. Right now it sits at about 55 MB when idle, barely touches the CPU, and uses around 1% of it
+while playing.
 
-I wanted a player that opens a big music folder quickly, plays nearly any format and stays light.
-Idle, Nyanoto uses about 55 MB of RAM and 0% CPU; while playing, about 1% CPU.
-
-The player does not download anything and does not send anything anywhere. Everything it knows
-about your music lives in one SQLite database on your disk. The music files are only read.
-
-Everything extra is a module: modules stay off until you turn them on in the settings.
-
-## Screenshots
+Everything the player knows about your music lives in one SQLite database on your disk. It only
+reads your files and never writes to them. Extra features are modules, and they stay off until you
+turn them on in the settings.
 
 | Album | Artists |
 |---|---|
 | ![Album](docs/screenshots/desktop-album.jpg) | ![Artists](docs/screenshots/desktop-artists.jpg) |
 
-| Phone: full player | Phone: library | Phone: settings |
+| Full player on a phone | Library | Settings |
 |---|---|---|
 | ![](docs/screenshots/phone-player.jpg) | ![](docs/screenshots/phone-artists.jpg) | ![](docs/screenshots/phone-settings.jpg) |
 
-## Features
+## What it does
 
-### Library
-- Several music folders: drives, USB sticks, network shares. An unplugged drive does not wipe your
-  likes and history.
-- Each folder has its own layout: by folders ("Artist / Album"), by tags, or by composers (for
-  classical music).
-- Artists and albums as a grid or a list; covers from the album folder or from the tags.
-- Artist pictures: your own photo or an image from the artist's folder.
-- Search that forgives the wrong keyboard layout and typos.
-- Playlists, "Favorites", a queue with history.
-- Scanning runs in the background and the window stays responsive (tested on 100,000 files).
+The library is built from folders: on a drive, on a USB stick, on the network. For each folder you
+choose how to read it: by folders like "Artist / Album", by tags, or by composers if it's classical
+music. Unplug a drive and your likes and history stay put. Covers come from the album folder or the
+tags, and you can give an artist your own photo. Search forgives typos and the wrong keyboard layout.
+Scanning runs in the background and the window doesn't freeze (I tried it on 100,000 files).
 
-### Playback
-- Gapless playback.
-- Speed from 0.25× to 3×, pitch preserved.
-- Crossfade between tracks of different albums.
-- Sleep timer: at a time or after the current track.
-- A–B repeat.
-- Shuffle tracks or albums. When an album ends, the player can go on with another album by the same
-  artist.
-- Pause when headphones are unplugged.
+Tracks play back to back without gaps. Speed goes from 0.25× to 3× without changing the pitch. There's
+also crossfade between albums, a sleep timer, A–B repeat, and shuffle for tracks or whole albums.
+When an album ends, the player can carry on with another album by the same artist. Pull out your
+headphones and the music pauses.
 
-### Lyrics
-- Synced lyrics from an `.lrc` file next to the track or from the tags.
-- Two looks: plain lines and "scenes" — animated text in the style of the Cotodama lyric speaker.
-  The scene style follows the mood of the track, which the player works out from the audio itself.
-- An `.lrc` editor (desktop): type the text, set time marks by ear over the track's waveform, save.
+Lyrics come from an `.lrc` file next to the track or from the tags. You can show them as plain lines
+or as scenes, animated text inspired by the Cotodama lyric speaker. The scene style depends on the
+mood of the track, and the player works that mood out from the audio itself. The desktop version has
+an `.lrc` editor where you set the time marks by ear, right on the track's waveform.
 
-### Statistics and the daily playlist
-- Listening statistics and a "map": artists and albums as circles, the more you listened, the bigger.
-- Daily playlist: a new mix from your own library every day — mostly familiar tracks plus a few new
-  ones, ordered in a wave by tempo.
+The player keeps listening statistics and draws a map from them: the longer you've listened to an
+artist, the bigger their circle. The same statistics feed a daily playlist built from your own
+library, mostly familiar tracks plus a few new ones, arranged in a wave by tempo.
 
-### Checking files
-- Quality authenticity check (beta): looks for "lossless" files made from MP3 and for upsampled
-  Hi-Res. It is an educated guess from the spectrum, not proof.
-- Library health: broken files, duplicates, gaps in albums.
+If you like digging into your files, there's an authenticity check (still in beta). It looks for
+"lossless" files that were transcoded from MP3 and for upsampled Hi-Res. It's an estimate from the
+spectrum, not a verdict. The Health tab shows broken files, duplicates and gaps in albums.
 
-### Look
-- Themes: light, dark, black for OLED, "Vinyl", "Synthwave", "Terminal" and "Cover" (colours taken
-  from the cover of the playing track).
-- Interface scale 80–150%.
-- Russian and English.
+There are seven themes: light, dark, black for OLED screens, Vinyl, Synthwave, Terminal, and Cover,
+which takes its colours from the cover of the playing track. The interface comes in English or
+Russian, scaled from 80 to 150%.
 
-### System integration
-- Linux: media keys and the player widget over MPRIS (GNOME, KDE, `playerctl`).
-- Windows: media keys and the volume flyout (SMTC).
-- Android: a notification with buttons, the lock screen, headphone buttons.
-- Touchpad and touchscreen gestures: sideways for back and forward, down to collapse the player.
+It talks to the system in the usual ways. On Linux that's MPRIS: media keys, the GNOME and KDE
+widgets, `playerctl`. On Windows it's media keys and the volume flyout through SMTC, and on Android a
+notification with buttons and the lock screen. On a laptop, touchpad gestures work too: swipe
+sideways to go back and forward, swipe down to collapse the full player.
 
-### On the phone
-Its own touch interface: tabs at the bottom, a mini player above them, a full-screen player (swipe
-down to collapse, sideways for another track). Music keeps playing in the background; the Back
-gesture on the main screen sends the player to the background instead of closing it.
+On a phone it has its own interface made for fingers: tabs at the bottom, a mini player above them,
+tap it to open the full player, swipe down to close it. Music keeps playing in the background, and
+the Back gesture on the main screen sends the player to the background instead of closing it.
 
 ## Formats
 
-In short: nearly everything you meet in music collections.
-
-| Lossless | Lossy | Other |
+| Lossless | Lossy | Rare stuff |
 |---|---|---|
 | FLAC, ALAC, WAV, AIFF, WavPack, Monkey's Audio (APE), TTA, DSD (DSF, DFF), TAK¹, WMA Lossless¹, TrueHD¹ | MP3, AAC, Opus, Vorbis, Musepack, WMA¹, AC3¹, DTS¹ | ATRAC¹, RealAudio¹, speech codecs¹ |
 
-¹ through FFmpeg, if it is present (see below). The full table — what decodes each format and how
-well it is tested — is in [docs/FORMATS.md](docs/FORMATS.md) (in Russian).
+¹ Through FFmpeg, if it's installed (see below).
 
-FLAC, WavPack, APE and TTA are checked bit for bit against the reference decoders; Opus length is
-exact to the sample. DSD is converted to 88.2 or 176.4 kHz PCM with the player's own filter.
+I checked FLAC, WavPack, APE and TTA bit for bit against the reference decoders; Opus length matches
+to the sample. DSD is converted to 88.2 or 176.4 kHz PCM with the player's own filter. The detailed
+table of what decodes each format and how well it's tested is in [docs/FORMATS.md](docs/FORMATS.md)
+(in Russian).
 
-## Quick start
+## Getting started
 
-1. Build the player (see "Building") and run `nyanoto`.
-2. Click "Choose a music folder" and pick the folder.
-3. The player asks how to lay out this folder: by folders or by tags. If your music is stored as
-   "Artist / Album / tracks", pick "by folders"; if it is all mixed up, pick "by tags".
-4. Wait for the scan (the thin bar under the title) — done.
+1. Build the player (see below) and run `nyanoto`.
+2. Click "Choose a music folder".
+3. The player asks how to read it. If your music is sorted into artist and album folders, pick
+   "By folders". If it's all in one pile, pick "By tags".
+4. Wait for the scan to finish; you'll see a thin bar under the title while it runs.
 
-Modules are turned on in the settings. You can also add a folder from the command line:
-`nyanoto ~/Music`.
+You can also pass a folder when starting it: `nyanoto ~/Music`.
 
-On Android the player asks for "All files access" on first launch: without it, it cannot see
-`cover.jpg` covers and `.lrc` lyrics next to the music. Then it offers to add the `Music` folder.
+On Android the player asks for access to all files on first launch. Without it, it can't see the
+`cover.jpg` covers and `.lrc` lyrics sitting next to your music. After that it offers to add the
+`Music` folder.
 
-**Where the data lives:** the database, settings and the cover cache are in `~/.local/share/nyanoto`
-(Linux), `%APPDATA%\nyanoto` (Windows) or in the app's private folder (Android).
+The database, settings and cover cache are in `~/.local/share/nyanoto` on Linux, in
+`%APPDATA%\nyanoto` on Windows, and in the app's private folder on Android.
 
 ## Keyboard shortcuts
 
 | Key | Action |
 |---|---|
-| Space | pause / play |
-| ← / → | seek 5 seconds (with Shift — 30) |
-| Ctrl+← / Ctrl+→ | previous / next track |
-| ↑ / ↓ | volume up / down |
-| M | mute / unmute |
-| L | like / unlike |
+| Space | pause and play |
+| ← / → | seek 5 seconds, 30 with Shift |
+| Ctrl+← / Ctrl+→ | previous and next track |
+| ↑ / ↓ | volume up and down |
+| M | mute and unmute |
+| L | add to Favorites or remove |
 | Q | queue |
 | Ctrl+F or / | search |
 | Esc | back, close a window, leave a text field |
 
-Keyboard media keys work too. Letter keys also work in the Russian layout.
+Media keys work too. Letter keys also work in the Russian layout.
 
 ## Building
 
-You need Rust 1.88 or newer (1.92 for Android). All audio libraries (libopus, libwavpack, the
-Monkey's Audio SDK, libmpcdec, Signalsmith Stretch) are in `crates/nyanoto-core/vendor` and are built
-together with the player; there is nothing extra to install for them.
+You need Rust 1.88 or newer, 1.92 for Android. The audio libraries (libopus, libwavpack, the Monkey's
+Audio SDK, libmpcdec, Signalsmith Stretch) live in `crates/nyanoto-core/vendor` and get built along
+with the player, so there's nothing extra to install for them.
 
 ### Linux
 
 ```sh
 # Fedora
 sudo dnf install gcc-c++ alsa-lib-devel fontconfig-devel
-# Debian / Ubuntu
+# Debian, Ubuntu
 sudo apt install g++ pkg-config libasound2-dev libfontconfig1-dev
 
 cargo build --release -p nyanoto-app
@@ -158,23 +137,24 @@ A desktop entry and icons are in `packaging/linux` and `packaging/icons`.
 cargo build --release -p nyanoto-app
 ```
 
-Builds with MSVC, or from Linux with the llvm-mingw cross compiler (target
-`x86_64-pc-windows-gnullvm`). The program icon is `packaging/windows/nyanoto.ico`.
+It builds with MSVC. From Linux you can cross-compile with llvm-mingw for the
+`x86_64-pc-windows-gnullvm` target. The program icon is `packaging/windows/nyanoto.ico`.
 
 ### Android
 
-You need JDK 17, the Android SDK (platform 35, build-tools 35), NDK r28c and the Rust targets:
+You'll need JDK 17, the Android SDK with platform 35 and build-tools 35, NDK r28c, and the Rust targets:
 
 ```sh
 rustup target add aarch64-linux-android x86_64-linux-android
 export ANDROID_HOME=~/Android/Sdk
 export ANDROID_NDK=$ANDROID_HOME/ndk/28.2.13676358
-packaging/android/build.sh                           # release, arm64 and x86_64
-PROFILE=dev ABIS=x86_64 packaging/android/build.sh   # quick, for the emulator
+packaging/android/build.sh                           # release for arm64 and x86_64
+PROFILE=dev ABIS=x86_64 packaging/android/build.sh   # quick build for the emulator
 ```
 
-The result is `target/android/nyanoto.apk`. The script signs it with `~/.android/nyanoto-release.jks`
-and reads the password from the file next to it, `nyanoto-release.jks.pass`. To create the key once:
+The APK ends up in `target/android/nyanoto.apk`. The script signs it with
+`~/.android/nyanoto-release.jks` and reads the password from `nyanoto-release.jks.pass` next to it.
+You create the key once:
 
 ```sh
 printf '%s' 'choose-a-password' > ~/.android/nyanoto-release.jks.pass
@@ -183,48 +163,48 @@ keytool -genkeypair -keystore ~/.android/nyanoto-release.jks -alias nyanoto \
     -storepass:file ~/.android/nyanoto-release.jks.pass
 ```
 
-Keep the key safe: Android will not install a new version signed with a different key over the old one.
+Don't lose it: Android won't install a version signed with a different key over the old one.
 
-### FFmpeg (optional)
+### FFmpeg
 
-Rare formats (WMA, AC3, DTS, TAK and others) play through FFmpeg 7. FFmpeg is not built into the
-player: its libraries are loaded only when such a file shows up. The player looks for them in an
-`ffmpeg` folder next to the program, then in the system. You can build your own audio-only FFmpeg 7.1
-with `crates/nyanoto-core/ffmpeg/build.sh`. Without FFmpeg the player works fine; those formats just
-won't open.
+FFmpeg is only needed for rare formats like WMA, AC3, DTS and TAK. It isn't built into the player;
+its libraries are loaded when such a file turns up. The player looks for them in an `ffmpeg` folder
+next to the program, then in the system, and it needs version 7. You can build your own audio-only
+FFmpeg 7.1 with `crates/nyanoto-core/ffmpeg/build.sh`. Without FFmpeg the player works as usual; those
+files just won't open.
 
-### Checks
+### Tests
 
 ```sh
 cargo test --workspace
 cargo clippy --workspace --all-targets
 ```
 
-There is also a console player for testing the engine without a window:
-`cargo run -p nyanoto-cli -- play FOLDER` (`nyanoto-cli` without arguments lists all commands).
+To poke at the engine without a window there's a console player:
+`cargo run -p nyanoto-cli -- play FOLDER`. Run it without arguments to see the other commands.
 
-## Project layout
+## How the code is laid out
 
-| Part | What is inside |
+| Part | What's there |
 |---|---|
-| `crates/nyanoto-core` | The engine: decoding, audio output, resampling, speed, equalizer, authenticity check, own decoders (TTA, DSD) and wrappers around the reference libraries |
-| `crates/nyanoto-library` | The library: scanner, tags, SQLite database, search, playlists, statistics, daily playlist |
-| `crates/nyanoto-app` | The [Slint](https://slint.dev) window: desktop markup in `ui/`, phone markup in `ui/mobile/`, all window logic |
-| `crates/nyanoto-android` | The Android entry point |
-| `crates/nyanoto-cli` | Console player and test tools |
-| `crates/nyanoto-testkit` | Test helpers |
-| `packaging/` | Icons, the Linux desktop entry, the Java part and the APK build |
-| `docs/` | Development log (`LOG.md`, in English), open issues, ideas, the formats table |
+| `crates/nyanoto-core` | the engine: decoding, audio output, resampling, speed, equalizer, authenticity check, own TTA and DSD decoders, wrappers around the reference libraries |
+| `crates/nyanoto-library` | scanner, tags, SQLite database, search, playlists, statistics, daily playlist |
+| `crates/nyanoto-app` | the [Slint](https://slint.dev) window: desktop markup in `ui/`, phone markup in `ui/mobile/`, and all the logic |
+| `crates/nyanoto-android` | the Android entry point |
+| `crates/nyanoto-cli` | console player and test utilities |
+| `crates/nyanoto-testkit` | test helpers |
+| `packaging/` | icons, the Linux desktop entry, the Java part and the APK build |
+| `docs/` | development log `LOG.md` (in English), open issues, ideas, formats table |
 
-The desktop window and the phone window have the same set of properties and callbacks, so the
-logic is shared and only the markup differs. The set is taken from `ui/app.slint` and, when building
-for Android, inserted into `ui/mobile/app.slint`.
+The desktop and the phone share the same logic; only the markup differs. The window's set of
+properties and callbacks is defined in `ui/app.slint`, and when building for Android it gets copied
+into `ui/mobile/app.slint`.
 
 ## License
 
 Nyanoto is released under the [GNU GPL, version 3 or later](LICENSE).
 
-Third-party parts and their licenses:
+Other people's code and fonts inside:
 
 | What | License |
 |---|---|
@@ -235,9 +215,9 @@ Third-party parts and their licenses:
 | Monkey's Audio SDK 13.27 | BSD-3-Clause |
 | libmpcdec (Musepack r495) | BSD-3-Clause |
 | Signalsmith Stretch | MIT |
-| FFmpeg 7.1 (loaded at run time, not built in) | LGPL-2.1+ |
-| Fonts Oswald, Playfair Display, Great Vibes, Unbounded, Press Start 2P, JetBrains Mono | SIL OFL 1.1 |
+| FFmpeg 7.1, loaded at run time | LGPL-2.1+ |
+| fonts Oswald, Playfair Display, Great Vibes, Unbounded, Press Start 2P, JetBrains Mono | SIL OFL 1.1 |
 
 License texts sit next to the sources in `crates/nyanoto-core/vendor/*` and `crates/nyanoto-app/fonts/`.
-The main dependencies with their versions are listed in the player itself: "Settings → About →
-Components and licenses".
+You can see the versions of the main dependencies in the player itself: Settings → About →
+Components and licenses.
