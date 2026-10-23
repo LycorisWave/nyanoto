@@ -4,7 +4,8 @@ A player for music you keep as files. Runs on Linux, Windows and Android.
 
 [Русский](README.md)
 
-Version 0.1.3, pre-alpha. There are no ready-made builds yet, so you'll have to build it yourself;
+Version 0.1.3, pre-alpha. Builds for Linux, Windows and Android are on the
+[releases](https://github.com/LycorisWave/nyanoto/releases) page, or you can build it yourself;
 instructions are below. I work mostly on Linux. Windows and Android are built from the same code,
 but I test them less often.
 
@@ -80,7 +81,7 @@ table of what decodes each format and how well it's tested is in [docs/FORMATS.m
 
 ## Getting started
 
-1. Build the player (see below) and run `nyanoto`.
+1. Download a build from [releases](https://github.com/LycorisWave/nyanoto/releases) or build it yourself (see below), then run `nyanoto`.
 2. Click "Choose a music folder".
 3. The player asks how to read it. If your music is sorted into artist and album folders, pick
    "By folders". If it's all in one pile, pick "By tags".
