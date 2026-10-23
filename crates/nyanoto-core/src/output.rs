@@ -119,7 +119,7 @@ pub(crate) struct Output {
 
 /// Звуковая система ОС.
 ///
-/// В Linux — ALSA, дальше ведёт PipeWire: дешевле всего, без посредника (замер — LOG.md).
+/// В Linux — ALSA, дальше ведёт PipeWire: дешевле всего, без посредника (проверено замером).
 /// Но ALSA видит только `default`, поэтому настоящее имя выхода спрашиваем у сервера PulseAudio.
 pub(crate) struct Audio {
     host: cpal::Host,

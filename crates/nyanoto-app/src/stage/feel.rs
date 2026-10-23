@@ -342,7 +342,7 @@ mod tests {
 
     #[test]
     fn punk_is_fierce_and_acoustic_is_calm() {
-        // Как «Куда пропала Элис» и «портреты (Acoustic)» (LOG.md).
+        // Как «Куда пропала Элис» и «портреты (Acoustic)».
         let punk = Mood::from_feel(&feel(-8.5, 0.08, 0.1, 30));
         let acoustic = Mood::from_feel(&feel(-17.0, 0.015, 0.01, 30));
         assert!(punk.song > FIERCE, "{}", punk.song);

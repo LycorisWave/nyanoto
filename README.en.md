@@ -195,7 +195,7 @@ To poke at the engine without a window there's a console player:
 | `crates/nyanoto-cli` | console player and test utilities |
 | `crates/nyanoto-testkit` | test helpers |
 | `packaging/` | icons, the Linux desktop entry, the Java part and the APK build |
-| `docs/` | development log `LOG.md` (in English), open issues, ideas, formats table |
+| `docs/` | formats table and screenshots |
 
 The desktop and the phone share the same logic; only the markup differs. The window's set of
 properties and callbacks is defined in `ui/app.slint`, and when building for Android it gets copied
