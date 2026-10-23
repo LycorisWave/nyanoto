@@ -5,6 +5,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
+license.workspace = true
 
 # Тесты — только у библиотеки: иначе `cargo test` собирает интерфейс дважды и сразу
 # (по ~3 ГБ), и сервер сборки уходит в подкачку.

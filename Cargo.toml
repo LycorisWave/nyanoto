@@ -6,6 +6,7 @@ members = ["crates/nyanoto-core", "crates/nyanoto-library", "crates/nyanoto-app"
 version = "0.1.3-pre-alpha"
 edition = "2024"
 rust-version = "1.88"
+license = "GPL-3.0-or-later"
 publish = false
 
 [workspace.dependencies]

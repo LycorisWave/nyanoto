@@ -5,6 +5,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
+license.workspace = true
 
 [dependencies]
 # Сведения и теги форматов, которых не знают ни lofty, ни Symphonia (TTA, DSF,
