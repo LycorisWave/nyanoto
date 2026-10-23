@@ -1,0 +1,7 @@
+[package]
+name = "nyanoto-testkit"
+description = "Инструменты для тестов nyanoto: временные папки и кодировщик FLAC"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true

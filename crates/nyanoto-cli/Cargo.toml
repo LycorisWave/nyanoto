@@ -1,0 +1,12 @@
+[package]
+name = "nyanoto-cli"
+description = "Консольный плеер Nyanoto для проверки движка"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+nyanoto-core = { path = "../nyanoto-core" }
+nyanoto-library = { path = "../nyanoto-library" }
+nyanoto-testkit = { path = "../nyanoto-testkit" }

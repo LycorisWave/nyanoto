@@ -1,0 +1,5 @@
+Monkey's Audio SDK 13.27 (1 октября 2026; 13.30 вышла накануне работы — взята версия старше двух недель),
+https://monkeysaudio.com/files/MAC_1327_SDK.zip, SHA256 c47c6b36f6a7bd50d990f2eb36a70915c0074a7b9634be396c94464905e76686
+(независимой суммы нет: загрузка по HTTPS с официального сайта). Взяты Source/MACLib (с Old — старые
+версии файлов) и Source/Shared без заголовков MFC. Лицензия BSD-3 (License.txt). Своя прослойка —
+src/native/ape.cpp.

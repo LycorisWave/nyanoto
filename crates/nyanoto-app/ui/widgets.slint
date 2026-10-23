@@ -1,0 +1,781 @@
+// Свои переключатель, ползунок, кнопка, список и поле: как встроенные,
+// но цвета из `Theme` — системный акцент пестрит в «Синтвейве».
+
+import { Theme } from "theme.slint";
+import { Icon, IconButton, Icons, Ui } from "icons.slint";
+
+// Слова контекстного меню поля ввода — ставит main.rs по языку.
+export global WidgetWords {
+    in property <string> undo: "Отменить";
+    in property <string> redo: "Повторить";
+    in property <string> cut: "Вырезать";
+    in property <string> copy: "Копировать";
+    in property <string> paste: "Вставить";
+    in property <string> select-all: "Выделить всё";
+}
+
+export component Switch inherits Rectangle {
+    in property <string> text;
+    in property <bool> enabled: true;
+    in-out property <bool> checked;
+    callback toggled();
+    accessible-role: checkbox;
+    accessible-checkable: true;
+    accessible-checked: root.checked;
+    accessible-label: root.text;
+    accessible-enabled: root.enabled;
+    accessible-action-default => { root.flip(); }
+    forward-focus: focus;
+    min-height: 24px;
+    // Как у встроенного: по ширине не тянется — не шире себя.
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    preferred-width: row.preferred-width;
+    max-width: row.preferred-width;
+    max-height: max(24px, row.preferred-height);
+
+    function flip() {
+        if (!root.enabled) {
+            return;
+        }
+        root.checked = !root.checked;
+        root.toggled();
+    }
+
+    focus := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if (event.text == " " || event.text == "\n") {
+                root.flip();
+                return accept;
+            }
+            return reject;
+        }
+    }
+    area := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { root.flip(); }
+    }
+    row := HorizontalLayout {
+        spacing: 10px;
+        alignment: start;
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 40px;
+                height: 20px;
+                border-radius: 10px;
+                background: root.checked ? Theme.accent : transparent;
+                border-width: root.checked ? 0px : 1.5px;
+                border-color: focus.has-focus ? Theme.accent : Theme.foreground.with-alpha(0.55);
+                opacity: root.enabled ? 1 : 0.4;
+                animate background { duration: 150ms; easing: ease-out; }
+                Rectangle {
+                    property <length> side: (root.checked ? 14px : 12px) + (area.has-hover && root.enabled ? 2px : 0px);
+                    width: self.side;
+                    height: self.side;
+                    border-radius: self.side / 2;
+                    x: root.checked ? parent.width - self.side - 3px : 4px - (self.side - 12px) / 2;
+                    y: (parent.height - self.side) / 2;
+                    background: root.checked ? Theme.accent-foreground : Theme.foreground.with-alpha(0.75);
+                    animate x, width, height { duration: 150ms; easing: ease-out; }
+                }
+            }
+        }
+        if root.text != "": Text {
+            text: root.text;
+            color: Theme.foreground;
+            opacity: root.enabled ? 1 : 0.5;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component Slider inherits Rectangle {
+    in property <float> minimum: 0;
+    in property <float> maximum: 100;
+    in property <float> step: 1;
+    in-out property <float> value;
+    in property <bool> enabled: true;
+    callback changed(float);
+    callback released(float);
+    // По высоте не тянется, иначе ряд расползается.
+    min-height: 24px;
+    preferred-height: 24px;
+    max-height: 24px;
+    vertical-stretch: 0;
+    min-width: 60px;
+    accessible-role: slider;
+    accessible-enabled: root.enabled;
+    accessible-value: root.value;
+    accessible-value-minimum: root.minimum;
+    accessible-value-maximum: root.maximum;
+    accessible-value-step: root.step;
+    accessible-action-increment => { root.nudge(1); }
+    accessible-action-decrement => { root.nudge(-1); }
+    accessible-action-set-value(text) => {
+        root.set-value(text.to-float());
+        root.released(root.value);
+    }
+    forward-focus: focus;
+    property <float> share: root.maximum > root.minimum ? clamp((root.value - root.minimum) / (root.maximum - root.minimum), 0, 1) : 0;
+    property <length> inset: 8px;
+
+    function set-value(wanted: float) {
+        let snapped = root.step > 0 ? root.minimum + round((wanted - root.minimum) / root.step) * root.step : wanted;
+        let next = clamp(snapped, root.minimum, root.maximum);
+        if (next != root.value) {
+            root.value = next;
+            root.changed(next);
+        }
+    }
+    function at(x: length) {
+        root.set-value(root.minimum + clamp((x - root.inset) / max(1px, root.width - 2 * root.inset), 0, 1) * (root.maximum - root.minimum));
+    }
+    function nudge(steps: int) {
+        let size = root.step > 0 ? root.step : (root.maximum - root.minimum) / 20;
+        root.set-value(root.value + steps * size);
+        root.released(root.value);
+    }
+
+    focus := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if (event.text == Key.RightArrow || event.text == Key.UpArrow) {
+                root.nudge(1);
+                return accept;
+            }
+            if (event.text == Key.LeftArrow || event.text == Key.DownArrow) {
+                root.nudge(-1);
+                return accept;
+            }
+            return reject;
+        }
+    }
+    // Дорожка, заполненная часть и ручка.
+    Rectangle {
+        x: root.inset;
+        width: parent.width - 2 * root.inset;
+        height: area.has-hover || area.pressed ? 6px : 4px;
+        y: (parent.height - self.height) / 2;
+        border-radius: self.height / 2;
+        background: Theme.foreground.with-alpha(0.18);
+        animate height { duration: 120ms; }
+        Rectangle {
+            x: 0;
+            width: parent.width * root.share;
+            height: parent.height;
+            border-radius: parent.border-radius;
+            background: root.enabled ? Theme.accent : Theme.foreground.with-alpha(0.35);
+        }
+    }
+    Rectangle {
+        property <length> side: area.pressed ? 18px : area.has-hover ? 16px : 14px;
+        width: self.side;
+        height: self.side;
+        border-radius: self.side / 2;
+        x: root.inset + (parent.width - 2 * root.inset) * root.share - self.side / 2;
+        y: (parent.height - self.side) / 2;
+        background: root.enabled ? Theme.accent : Theme.foreground.with-alpha(0.5);
+        border-width: 2px;
+        border-color: focus.has-focus ? Theme.foreground : Theme.background;
+        animate width, height { duration: 120ms; }
+    }
+    area := TouchArea {
+        enabled: root.enabled;
+        pointer-event(event) => {
+            if (event.button == PointerEventButton.left) {
+                if (event.kind == PointerEventKind.down) {
+                    root.at(self.mouse-x);
+                } else if (event.kind == PointerEventKind.up) {
+                    root.released(root.value);
+                }
+            }
+        }
+        moved => {
+            if (self.pressed) {
+                root.at(self.mouse-x);
+            }
+        }
+    }
+}
+
+export component Button inherits Rectangle {
+    in property <string> text;
+    in property <bool> primary;
+    in property <bool> enabled: true;
+    callback clicked();
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-enabled: root.enabled;
+    accessible-action-default => {
+        if (root.enabled) {
+            root.clicked();
+        }
+    }
+    forward-focus: focus;
+    min-height: 32px;
+    preferred-height: 32px;
+    max-height: 32px;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    min-width: label.preferred-width + 24px;
+    preferred-width: label.preferred-width + 28px;
+    border-radius: Ui.radius;
+    background: root.primary ? Theme.accent : Theme.control;
+    border-width: root.primary ? 0px : 1px;
+    border-color: focus.has-focus ? Theme.accent : Theme.border;
+    opacity: root.enabled ? 1 : 0.45;
+    Rectangle {
+        border-radius: parent.border-radius;
+        background: area.pressed ? #00000026 : area.has-hover ? (root.primary ? #ffffff26 : Theme.foreground.with-alpha(0.07)) : transparent;
+        animate background { duration: 120ms; }
+    }
+    label := Text {
+        text: root.text;
+        color: root.primary ? Theme.accent-foreground : Theme.foreground;
+        vertical-alignment: center;
+        horizontal-alignment: center;
+        width: 100%;
+        height: 100%;
+        overflow: elide;
+    }
+    area := TouchArea {
+        enabled: root.enabled;
+        clicked => { root.clicked(); }
+    }
+    focus := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if (event.text == " " || event.text == "\n") {
+                root.clicked();
+                return accept;
+            }
+            return reject;
+        }
+    }
+}
+
+export component ComboBox inherits Rectangle {
+    in property <[string]> model;
+    in-out property <int> current-index;
+    in property <bool> enabled: true;
+    out property <string> current-value: root.model[root.current-index];
+    callback selected(string);
+    accessible-role: combobox;
+    accessible-value: root.current-value;
+    accessible-enabled: root.enabled;
+    accessible-expandable: true;
+    accessible-action-expand => { root.open(); }
+    accessible-action-default => { root.open(); }
+    forward-focus: focus;
+    min-height: 32px;
+    preferred-height: 32px;
+    max-height: 32px;
+    vertical-stretch: 0;
+    min-width: 80px;
+    preferred-width: max(120px, label.preferred-width + 48px);
+    border-radius: Ui.radius;
+    background: Theme.control;
+    border-width: 1px;
+    border-color: focus.has-focus ? Theme.accent : Theme.border;
+    opacity: root.enabled ? 1 : 0.45;
+
+    function open() {
+        if (root.enabled && root.model.length > 0) {
+            popup.show();
+        }
+    }
+    function pick(index: int) {
+        if (index >= 0 && index < root.model.length && index != root.current-index) {
+            root.current-index = index;
+            root.selected(root.model[index]);
+        }
+    }
+
+    Rectangle {
+        border-radius: parent.border-radius;
+        background: area.pressed ? #00000020 : area.has-hover ? Theme.foreground.with-alpha(0.07) : transparent;
+        animate background { duration: 120ms; }
+    }
+    label := Text {
+        x: 12px;
+        width: parent.width - 40px;
+        height: 100%;
+        text: root.current-value;
+        color: Theme.foreground;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+    Path {
+        x: parent.width - 28px;
+        y: (parent.height - 16px) / 2;
+        width: 16px;
+        height: 16px;
+        viewbox-width: 24;
+        viewbox-height: 24;
+        commands: "M6 9 L12 15 L18 9";
+        stroke: Theme.foreground;
+        stroke-width: 1.6px;
+        stroke-line-cap: round;
+        stroke-line-join: round;
+        fill: transparent;
+    }
+    area := TouchArea {
+        enabled: root.enabled;
+        clicked => { root.open(); }
+    }
+    focus := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if (event.text == Key.UpArrow) {
+                root.pick(root.current-index - 1);
+                return accept;
+            }
+            if (event.text == Key.DownArrow) {
+                root.pick(root.current-index + 1);
+                return accept;
+            }
+            if (event.text == " " || event.text == "\n") {
+                root.open();
+                return accept;
+            }
+            return reject;
+        }
+    }
+    popup := PopupWindow {
+        x: 0;
+        y: root.height + 4px;
+        width: max(root.width, 160px);
+        height: min(root.model.length * 34px + 8px, 340px);
+        Rectangle {
+            background: Theme.surface;
+            border-radius: Ui.radius;
+            border-width: 1px;
+            border-color: Theme.border;
+            drop-shadow-blur: 16px;
+            drop-shadow-color: #00000060;
+            clip: true;
+            Flickable {
+                content-height: root.model.length * 34px + 8px;
+                for item[index] in root.model: Rectangle {
+                    accessible-role: list-item;
+                    accessible-label: item;
+                    accessible-action-default => {
+                        root.pick(index);
+                        popup.close();
+                    }
+                    x: 4px;
+                    y: 4px + index * 34px;
+                    width: parent.width - 8px;
+                    height: 34px;
+                    border-radius: Ui.radius-small;
+                    background: touch.has-hover ? Theme.foreground.with-alpha(0.08) : transparent;
+                    Rectangle {
+                        x: 0;
+                        width: 3px;
+                        height: 16px;
+                        y: (parent.height - self.height) / 2;
+                        border-radius: 2px;
+                        background: Theme.accent;
+                        visible: index == root.current-index;
+                    }
+                    Text {
+                        x: 12px;
+                        width: parent.width - 20px;
+                        height: 100%;
+                        text: item;
+                        color: Theme.foreground;
+                        font-weight: index == root.current-index ? 600 : 400;
+                        vertical-alignment: center;
+                        overflow: elide;
+                    }
+                    touch := TouchArea {
+                        clicked => { root.pick(index); }
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component LineEdit inherits Rectangle {
+    in-out property <string> text <=> input.text;
+    in property <string> placeholder-text;
+    in property <bool> enabled <=> input.enabled;
+    in property <length> font-size: 14px;
+    out property <bool> has-focus: input.has-focus;
+    callback accepted(string);
+    callback edited(string);
+    accessible-role: text-input;
+    accessible-value: root.text;
+    accessible-placeholder-text: root.placeholder-text;
+    accessible-enabled: root.enabled;
+    forward-focus: input;
+    min-height: 34px;
+    preferred-height: 34px;
+    max-height: 34px;
+    vertical-stretch: 0;
+    min-width: 60px;
+    border-radius: Ui.radius;
+    background: Theme.control;
+    border-width: 1px;
+    border-color: input.has-focus ? Theme.accent : Theme.border;
+    opacity: root.enabled ? 1 : 0.5;
+
+    public function select-all() {
+        input.select-all();
+    }
+
+    ContextMenuArea {
+        enabled: root.enabled;
+        Menu {
+            MenuItem {
+                title: WidgetWords.undo;
+                activated => { input.undo(); }
+            }
+            MenuItem {
+                title: WidgetWords.redo;
+                activated => { input.redo(); }
+            }
+            MenuSeparator { }
+            MenuItem {
+                title: WidgetWords.cut;
+                activated => { input.cut(); }
+            }
+            MenuItem {
+                title: WidgetWords.copy;
+                activated => { input.copy(); }
+            }
+            MenuItem {
+                title: WidgetWords.paste;
+                activated => { input.paste(); }
+            }
+            MenuSeparator { }
+            MenuItem {
+                title: WidgetWords.select-all;
+                activated => { input.select-all(); }
+            }
+        }
+        // Поле с прокруткой: длинный текст сдвигается так, чтобы курсор был виден.
+        Rectangle {
+            x: 12px;
+            width: parent.width - 24px;
+            height: 100%;
+            clip: true;
+            Text {
+                width: 100%;
+                height: 100%;
+                vertical-alignment: center;
+                text: root.text == "" && input.preedit-text == "" ? root.placeholder-text : "";
+                font-size: root.font-size;
+                color: Theme.foreground.with-alpha(0.5);
+                overflow: elide;
+                accessible-role: none;
+            }
+            input := TextInput {
+                property <length> computed-x;
+                x: min(0px, max(parent.width - self.width - self.text-cursor-width, self.computed-x));
+                width: max(parent.width - self.text-cursor-width, self.preferred-width);
+                height: 100%;
+                vertical-alignment: center;
+                single-line: true;
+                font-size: root.font-size;
+                color: Theme.foreground;
+                selection-background-color: Theme.foreground.with-alpha(0.3);
+                selection-foreground-color: Theme.foreground;
+                accessible-role: none;
+                cursor-position-changed(position) => {
+                    if (position.x + self.computed-x < 0px) {
+                        self.computed-x = -position.x;
+                    } else if (position.x + self.computed-x > parent.width - self.text-cursor-width) {
+                        self.computed-x = parent.width - position.x - self.text-cursor-width;
+                    }
+                }
+                accepted => { root.accepted(self.text); }
+                edited => { root.edited(self.text); }
+            }
+        }
+    }
+}
+
+// Громкость, которая гнётся, как палка: длина постоянная.
+// Места мало — правый конец стоит, палка выгибается дугой до почти кольца, значок въезжает внутрь.
+// Изгиб прямо от ширины, без скачков.
+export component BendVolume inherits Rectangle {
+    in-out property <float> value;
+    in property <length> room;
+    in property <string> icon;
+    in property <string> label;
+    in property <length> length: 110px;
+    // Цвет палки и значка (на полноэкранном плеере — белый поверх обложки).
+    in property <color> tint: Theme.foreground;
+    callback changed(float);
+    callback mute();
+    width: max(38px, root.room);
+    height: 34px;
+    // Не растягиваться в рядах (иначе ряд кнопок полноэкранного плеера разъезжался).
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    accessible-role: slider;
+    accessible-label: root.label;
+    accessible-value: round(root.value * 100);
+    accessible-value-minimum: 0;
+    accessible-value-maximum: 100;
+    accessible-value-step: 5;
+    accessible-action-increment => { root.set(root.value + 0.05); }
+    accessible-action-decrement => { root.set(root.value - 0.05); }
+
+    // Полуугол дуги по хорде: sin(u)/u = x. Ньютон, пять шагов (циклов нет).
+    pure function half-angle(x: float) -> float {
+        let x1 = clamp(x, 0.6366, 0.99999);
+        let u0 = min(1.5708, Math.sqrt(6 * (1 - x1)));
+        let u1 = clamp(u0 - (Math.sin(u0 * 1rad) - x1 * u0) / (Math.cos(u0 * 1rad) - x1), 0.0001, 1.5708);
+        let u2 = clamp(u1 - (Math.sin(u1 * 1rad) - x1 * u1) / (Math.cos(u1 * 1rad) - x1), 0.0001, 1.5708);
+        let u3 = clamp(u2 - (Math.sin(u2 * 1rad) - x1 * u2) / (Math.cos(u2 * 1rad) - x1), 0.0001, 1.5708);
+        let u4 = clamp(u3 - (Math.sin(u3 * 1rad) - x1 * u3) / (Math.cos(u3 * 1rad) - x1), 0.0001, 1.5708);
+        return clamp(u4 - (Math.sin(u4 * 1rad) - x1 * u4) / (Math.cos(u4 * 1rad) - x1), 0.0001, 1.5708);
+    }
+
+    property <float> long: root.length / 1px;
+    property <float> wide: self.width / 1px;
+    // Место под значок слева от палки.
+    property <float> gap: 36;
+    // Полукругом палка становится, когда места — её диаметр и значок.
+    property <float> half: 2 * self.long / 3.14159 + self.gap;
+    // Кольцом — когда места примерно на диаметр кольца.
+    property <float> ring: 38;
+    // После полукруга значок въезжает внутрь (0 — снаружи, 1 — в середине).
+    property <float> curl: clamp((self.half - self.wide) / (self.half - self.ring), 0, 1);
+    // Ширина самой дуги: всё место, кроме того, что пока занимает значок.
+    property <float> span: min(self.long, self.wide - self.gap * (1 - self.curl));
+    property <bool> straight: self.span >= self.long - 0.3;
+    // До полукруга ширина дуги — хорда, после — диаметр (2r = длина / u).
+    property <float> u: self.straight ? 0
+        : self.span >= 2 * self.long / 3.14159 ? root.half-angle(self.span / self.long)
+        : min(3.1, self.long / self.span);
+    property <float> radius: self.straight ? 0 : self.long / (2 * self.u);
+    property <float> rise: self.straight ? 0 : self.radius * (1 - Math.cos(self.u * 1rad));
+    property <float> middle: self.wide - self.span / 2;
+    // Концы дуги ниже середины, сама фигура — по центру по высоте.
+    property <float> base: 17 + self.rise / 2;
+    property <float> center-y: self.base + self.radius * Math.cos(self.u * 1rad);
+    property <float> left-x: self.straight ? self.wide - self.long : self.middle - self.radius * Math.sin(self.u * 1rad);
+    property <float> right-x: self.straight ? self.wide : self.middle + self.radius * Math.sin(self.u * 1rad);
+    property <float> end-y: self.straight ? 17 : self.base;
+    // Точка громкости на палке.
+    property <float> share: clamp(root.value, 0, 1);
+    property <angle> point-angle: (-90 - self.u * 57.29578 + self.share * self.u * 2 * 57.29578) * 1deg;
+    property <float> point-x: self.straight ? self.left-x + self.long * self.share : self.middle + self.radius * Math.cos(self.point-angle);
+    property <float> point-y: self.straight ? 17 : self.center-y + self.radius * Math.sin(self.point-angle);
+    property <string> whole: self.straight
+        ? "M " + self.left-x + " 17 L " + self.right-x + " 17"
+        : "M " + self.left-x + " " + self.end-y + " A " + self.radius + " " + self.radius + " 0 " + (self.u > 1.5708 ? "1" : "0") + " 1 " + self.right-x + " " + self.end-y;
+    property <string> part: self.straight
+        ? "M " + self.left-x + " 17 L " + self.point-x + " 17"
+        : "M " + self.left-x + " " + self.end-y + " A " + self.radius + " " + self.radius + " 0 " + (self.share * self.u > 1.5708 ? "1" : "0") + " 1 " + self.point-x + " " + self.point-y;
+    property <length> stroke: area.has-hover || area.pressed ? 4px : 3px;
+
+    function set(next: float) {
+        root.value = clamp(next, 0, 1);
+        root.changed(root.value);
+    }
+    function aim(x: length, y: length) {
+        if (root.straight) {
+            root.set((x / 1px - root.left-x) / root.long);
+            return;
+        }
+        let degrees = Math.atan2(y / 1px - root.center-y, x / 1px - root.middle) / 1deg;
+        let total = root.u * 2 * 57.29578;
+        let along = Math.mod(degrees + 90 + root.u * 57.29578 + 720, 360);
+        if (along <= total) {
+            root.set(along / total);
+        } else {
+            // В просвете кольца — к ближнему концу.
+            root.set(along - total < (360 - total) / 2 ? 1 : 0);
+        }
+    }
+
+    Path {
+        // Кольцо выше ряда: рисуем с запасом сверху и снизу, иначе обрезалось.
+        y: -10px;
+        width: parent.width;
+        height: parent.height + 20px;
+        viewbox-y: -10;
+        viewbox-width: root.wide;
+        viewbox-height: 54;
+        commands: root.whole;
+        stroke: root.tint.with-alpha(0.2);
+        stroke-width: root.stroke;
+        stroke-line-cap: round;
+        fill: transparent;
+    }
+    if root.share > 0.003: Path {
+        // Кольцо выше ряда: рисуем с запасом сверху и снизу, иначе обрезалось.
+        y: -10px;
+        width: parent.width;
+        height: parent.height + 20px;
+        viewbox-y: -10;
+        viewbox-width: root.wide;
+        viewbox-height: 54;
+        commands: root.part;
+        stroke: Theme.accent;
+        stroke-width: root.stroke;
+        stroke-line-cap: round;
+        fill: transparent;
+    }
+    area := TouchArea {
+        // Значок не перекрываем: у него свой щелчок (выключить звук).
+        pointer-event(event) => {
+            if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+                root.aim(self.mouse-x, self.mouse-y);
+            }
+        }
+        moved => {
+            if (self.pressed) {
+                root.aim(self.mouse-x, self.mouse-y);
+            }
+        }
+        scroll-event(event) => {
+            root.set(root.value + (event.delta-y > 0 ? 0.05 : -0.05));
+            return accept;
+        }
+    }
+    Rectangle {
+        x: root.point-x * 1px - 6px;
+        y: root.point-y * 1px - 6px;
+        width: 12px;
+        height: 12px;
+        border-radius: 6px;
+        background: Theme.accent;
+        visible: area.has-hover || area.pressed;
+    }
+    // Значок тает, когда палка сворачивается, а в кольце проявляется маленький. Жмётся тот, что виднее.
+    IconButton {
+        x: (root.wide - root.span - root.gap * (1 - root.curl) / 2) * 1px - 14px;
+        y: 3px;
+        size: 28px;
+        glyph: 18px;
+        opacity: clamp(1 - root.curl / 0.2, 0, 1);
+        visible: self.opacity > 0.5;
+        tint: root.tint;
+        icon: root.icon;
+        label: root.label;
+        clicked => { root.mute(); }
+    }
+    IconButton {
+        x: root.middle * 1px - 12px;
+        y: root.center-y * 1px - 12px;
+        size: 24px;
+        glyph: 16px;
+        opacity: clamp((root.curl - 0.1) / 0.2, 0, 1);
+        visible: self.opacity > 0.5;
+        tint: root.tint;
+        icon: root.icon;
+        label: root.label;
+        clicked => { root.mute(); }
+    }
+}
+
+// Не хватило места — ширина плавно в ноль, содержимое тает.
+export component Fold inherits Rectangle {
+    in property <bool> open;
+    in property <length> size: 34px;
+    width: self.open ? self.size : 0px;
+    height: 32px;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    opacity: self.open ? 1 : 0;
+    visible: self.open || self.width > 0.5px;
+    clip: true;
+    animate width, opacity { duration: 260ms; easing: cubic-bezier(0.2, 0, 0, 1); }
+    @children
+}
+
+// Свой заголовок: системная рамка на GNOME тормозила растяжение окна.
+// Кнопки — справа в верхней строке, тащат за пустое место.
+
+component WindowButton inherits Rectangle {
+    in property <string> icon;
+    in property <string> label;
+    // «Закрыть»: под мышью — красная.
+    in property <bool> danger;
+    in property <color> tint: Theme.foreground;
+    callback clicked;
+    width: 40px;
+    height: 32px;
+    border-radius: Ui.radius;
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => { root.clicked(); }
+    background: area.pressed ? (root.danger ? #a3271b : root.tint.with-alpha(0.16))
+        : area.has-hover ? (root.danger ? #c42b1c : root.tint.with-alpha(0.09)) : transparent;
+    Icon {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: 16px;
+        height: 16px;
+        icon: root.icon;
+        tint: root.danger && area.has-hover ? #ffffff : root.tint;
+    }
+    area := TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+export component WindowButtons inherits HorizontalLayout {
+    in property <bool> maximized;
+    in property <color> tint: Theme.foreground;
+    in property <string> minimize-label;
+    in property <string> maximize-label;
+    in property <string> restore-label;
+    in property <string> close-label;
+    callback minimize();
+    callback maximize();
+    callback close();
+    spacing: 2px;
+    WindowButton {
+        icon: Icons.minimize;
+        label: root.minimize-label;
+        tint: root.tint;
+        clicked => { root.minimize(); }
+    }
+    WindowButton {
+        icon: root.maximized ? Icons.restore : Icons.maximize;
+        label: root.maximized ? root.restore-label : root.maximize-label;
+        tint: root.tint;
+        clicked => { root.maximize(); }
+    }
+    WindowButton {
+        icon: Icons.close;
+        label: root.close-label;
+        danger: true;
+        tint: root.tint;
+        clicked => { root.close(); }
+    }
+}
+
+// Потянул — окно едет, двойной щелчок — развернуть, правый — меню системы.
+export component DragArea inherits TouchArea {
+    callback drag();
+    callback toggle();
+    callback menu(length, length);
+    property <bool> started;
+    pointer-event(event) => {
+        if (event.kind == PointerEventKind.down) {
+            self.started = false;
+            if (event.button == PointerEventButton.right) {
+                root.menu(self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+            }
+        }
+    }
+    moved => {
+        if (self.pressed && !self.started && (abs(self.mouse-x - self.pressed-x) > 3px || abs(self.mouse-y - self.pressed-y) > 3px)) {
+            self.started = true;
+            root.drag();
+        }
+    }
+    double-clicked => { root.toggle(); }
+}
+

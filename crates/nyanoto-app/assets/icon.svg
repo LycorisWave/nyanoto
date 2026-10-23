@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <clipPath id="tile"><rect x="8" y="8" width="240" height="240" rx="56"/></clipPath>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="#000000"/>
+  <!-- два ушка торчат снизу -->
+  <g clip-path="url(#tile)" fill="#ffffff">
+    <path d="M22 270 L50 110 Q56 84 72 104 L118 270 Z"/>
+    <path d="M234 270 L206 110 Q200 84 184 104 L138 270 Z"/>
+  </g>
+</svg>

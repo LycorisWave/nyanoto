@@ -1,0 +1,17 @@
+[package]
+name = "nyanoto-android"
+description = "Nyanoto для Android: точка входа и JNI"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+# Библиотека, которую грузит NativeActivity: libnyanoto.so.
+[lib]
+name = "nyanoto"
+crate-type = ["cdylib"]
+
+[target.'cfg(target_os = "android")'.dependencies]
+nyanoto-app = { path = "../nyanoto-app" }
+slint = { version = "1.18", default-features = false, features = ["std", "compat-1-2", "backend-android-activity-06"] }
+libc = "0.2"

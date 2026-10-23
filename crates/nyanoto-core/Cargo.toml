@@ -1,0 +1,47 @@
+[package]
+name = "nyanoto-core"
+description = "Движок воспроизведения nyanoto: декодирование, преобразование, вывод, очередь"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+cpal.workspace = true
+realfft = "3.5"
+rtrb.workspace = true
+rubato.workspace = true
+symphonia.workspace = true
+symphonia-metadata.workspace = true
+
+# Тот же набор возможностей, что у cpal: крейт собирается один раз.
+[target.'cfg(windows)'.dependencies.windows]
+version = "0.62"
+features = [
+    "Win32_Media",
+    "Win32_Media_Audio",
+    "Win32_Foundation",
+    "Win32_Devices_Properties",
+    "Win32_Media_KernelStreaming",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_Threading",
+    "Win32_System_Performance",
+    "Win32_Security",
+    "Win32_System_SystemServices",
+    "Win32_System_Variant",
+    "Win32_Media_Multimedia",
+    "Win32_UI_Shell_PropertiesSystem",
+]
+
+# Linux: имя выхода и его активный порт («Динамики» / «Наушники») — у сервера
+# PulseAudio (pipewire-pulse в современных Linux), протокол на чистом Rust, только
+# локальный сокет.
+[target.'cfg(target_os = "linux")'.dependencies]
+pulseaudio = "0.3.2"
+futures = { version = "0.3.34", default-features = false, features = ["executor"] }
+
+[dev-dependencies]
+nyanoto-testkit = { path = "../nyanoto-testkit" }
+
+[build-dependencies]
+cc = "1"

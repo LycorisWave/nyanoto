@@ -1,0 +1,45 @@
+[workspace]
+resolver = "3"
+members = ["crates/nyanoto-core", "crates/nyanoto-library", "crates/nyanoto-app", "crates/nyanoto-android", "crates/nyanoto-cli", "crates/nyanoto-testkit"]
+
+[workspace.package]
+version = "0.1.3-pre-alpha"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+
+[workspace.dependencies]
+cpal = "0.18"
+lofty = "0.25"
+rtrb = "0.3"
+rubato = "0.16"
+rusqlite = { version = "0.40", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+symphonia = { version = "0.5", features = ["all"] }
+# Чтение ID3v2 из форматов, которые декодирует не Symphonia (DSF, TTA).
+symphonia-metadata = "0.5"
+
+# Декодеры и ресемплер без оптимизации не успевают за реальным временем,
+# поэтому зависимости собираются с оптимизацией даже в отладочной сборке.
+# Отладочной информации — только номера строк (их хватает для трассировки
+# паники), у зависимостей — никакой: с полной отладочной информацией
+# отладочная сборка с тестами занимала 21 ГБ.
+[profile.dev]
+opt-level = 1
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 2
+debug = false
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+# Имена функций в файле не нужны: −7 МБ.
+strip = true
+
+[profile.release.package.nyanoto-app]
+opt-level = "s"
+# Своя настройка пакета сбрасывает strip у Cargo — чёт тут странно, повторяем.
+strip = true

@@ -1,0 +1,335 @@
+// Сезонные украшения: 1 Хеллоуин, 2 Новый год, 3 День кошек, 4 Валентинов,
+// 5 Космонавтики, 6 сакура. Сценки — раз в несколько минут, только в фокусе.
+// Без сценки ничего не перерисовывается.
+
+import { Theme } from "theme.slint";
+
+// Значок на котике-логотипе.
+export component SeasonBadge inherits Rectangle {
+    in property <int> season;
+    width: 18px;
+    height: 18px;
+    if root.season == 1: Rectangle {
+        Rectangle {
+            x: 8px;
+            y: 0px;
+            width: 2px;
+            height: 5px;
+            border-radius: 1px;
+            background: #3f7a2a;
+        }
+        Rectangle {
+            x: 1px;
+            y: 4px;
+            width: 16px;
+            height: 13px;
+            border-radius: 6px;
+            background: #ff7a1a;
+            border-width: 1px;
+            border-color: #c2510a;
+        }
+        Rectangle {
+            x: 8px;
+            y: 5px;
+            width: 2px;
+            height: 11px;
+            background: #c2510a;
+            opacity: 0.6;
+        }
+    }
+    if root.season == 2: Rectangle {
+        Path {
+            width: 18px;
+            height: 18px;
+            viewbox-width: 18;
+            viewbox-height: 18;
+            commands: "M2 14 L9 2 L16 9 L14 14 Z";
+            fill: #e8394a;
+        }
+        Rectangle {
+            x: 1px;
+            y: 13px;
+            width: 15px;
+            height: 4px;
+            border-radius: 2px;
+            background: #ffffff;
+        }
+        Rectangle {
+            x: 13px;
+            y: 6px;
+            width: 5px;
+            height: 5px;
+            border-radius: 2.5px;
+            background: #ffffff;
+        }
+    }
+    if root.season == 3: Path {
+        width: 18px;
+        height: 18px;
+        viewbox-width: 18;
+        viewbox-height: 18;
+        commands: "M9 9 L2 4 L2 14 Z M9 9 L16 4 L16 14 Z M7 7 L11 7 L11 11 L7 11 Z";
+        fill: #f08a24;
+    }
+    if root.season == 4: Path {
+        width: 18px;
+        height: 18px;
+        viewbox-width: 24;
+        viewbox-height: 24;
+        commands: "M12 21 C5 15 2 11.5 2 8 C2 5 4.5 3 7.2 3 C9.2 3 11 4.2 12 6 C13 4.2 14.8 3 16.8 3 C19.5 3 22 5 22 8 C22 11.5 19 15 12 21 Z";
+        fill: #ff4f7b;
+    }
+    if root.season == 5: Path {
+        width: 18px;
+        height: 18px;
+        viewbox-width: 24;
+        viewbox-height: 24;
+        commands: "M12 2 L14.6 9 L22 9.3 L16.2 14 L18.2 21.2 L12 17 L5.8 21.2 L7.8 14 L2 9.3 L9.4 9 Z";
+        fill: #ffd23d;
+    }
+    if root.season == 6: Rectangle {
+        for petal[index] in 5: Rectangle {
+            x: 9px + 4.5px * Math.sin(index * 72deg) - 3.5px;
+            y: 9px - 4.5px * Math.cos(index * 72deg) - 3.5px;
+            width: 7px;
+            height: 7px;
+            border-radius: 3.5px;
+            background: #ffb3cf;
+        }
+        Rectangle {
+            x: 7px;
+            y: 7px;
+            width: 4px;
+            height: 4px;
+            border-radius: 2px;
+            background: #e0507f;
+        }
+    }
+}
+
+// Неподвижные украшения, под страницами.
+export component SeasonDecor inherits Rectangle {
+    in property <int> season;
+    // Хеллоуин: паутина в правом верхнем углу.
+    if root.season == 1: Path {
+        x: parent.width - 150px;
+        y: 0px;
+        width: 150px;
+        height: 150px;
+        viewbox-width: 150;
+        viewbox-height: 150;
+        commands: "M150 0 L0 0 M150 0 L20 70 M150 0 L60 120 M150 0 L120 150 M150 0 L150 150 M118 0 L126 13 L135 27 L144 37 L150 32 M84 0 L96 28 L114 53 L136 73 L150 66 M50 0 L66 42 L93 80 L124 108 L150 100 M18 0 L38 56 L72 104 L112 144";
+        stroke: Theme.foreground.with-alpha(0.16);
+        stroke-width: 1px;
+        fill: transparent;
+    }
+    // Новый год: гирлянда по верхнему краю.
+    if root.season == 2: garland := Rectangle {
+        property <int> count: max(3, floor(self.width / 64px));
+        height: 30px;
+        y: 0px;
+        Path {
+            width: parent.width;
+            height: 30px;
+            viewbox-width: 1000;
+            viewbox-height: 30;
+            commands: "M0 4 Q125 22 250 6 Q375 22 500 6 Q625 22 750 6 Q875 22 1000 4";
+            stroke: Theme.foreground.with-alpha(0.25);
+            stroke-width: 1px;
+            fill: transparent;
+        }
+        for bulb[index] in garland.count: Rectangle {
+            property <float> along: (index + 0.5) / garland.count;
+            property <float> wave: Math.abs(Math.sin(along * 4 * 180deg));
+            x: parent.width * along - 4px;
+            y: 6px + 12px * wave;
+            width: 8px;
+            height: 10px;
+            border-radius: 4px;
+            background: Math.mod(index, 4) == 0 ? #e8394a : Math.mod(index, 4) == 1 ? #ffd23d : Math.mod(index, 4) == 2 ? #3fbf6f : #4fa3ff;
+            opacity: 0.85;
+        }
+    }
+    // День кошек: следы лапок внизу справа.
+    if root.season == 3: Rectangle {
+        for paw[index] in 4: Path {
+            x: parent.width - 220px + index * 46px;
+            y: parent.height - 70px - Math.mod(index, 2) * 22px;
+            width: 26px;
+            height: 26px;
+            viewbox-width: 24;
+            viewbox-height: 24;
+            commands: "M12 22 C8 22 6 19 7 16 C8 13.5 10 13 12 13 C14 13 16 13.5 17 16 C18 19 16 22 12 22 Z M5 12 A2.2 2.6 0 1 1 5 11.9 Z M9.5 8 A2.2 2.8 0 1 1 9.5 7.9 Z M14.5 8 A2.2 2.8 0 1 1 14.5 7.9 Z M19 12 A2.2 2.6 0 1 1 19 11.9 Z";
+            fill: Theme.foreground.with-alpha(0.10);
+        }
+    }
+    // Валентинов день: два сердечка в углу.
+    if root.season == 4: Rectangle {
+        for heart[index] in 2: Path {
+            x: parent.width - 90px + index * 34px;
+            y: 18px + index * 20px;
+            width: 30px - index * 8px;
+            height: 30px - index * 8px;
+            viewbox-width: 24;
+            viewbox-height: 24;
+            commands: "M12 21 C5 15 2 11.5 2 8 C2 5 4.5 3 7.2 3 C9.2 3 11 4.2 12 6 C13 4.2 14.8 3 16.8 3 C19.5 3 22 5 22 8 C22 11.5 19 15 12 21 Z";
+            fill: #ff4f7b;
+            opacity: 0.22;
+        }
+    }
+    // День космонавтики: звёзды в правой части.
+    if root.season == 5: Rectangle {
+        for star[index] in 14: Rectangle {
+            x: parent.width - 260px + Math.mod(index * 97, 250) * 1px;
+            y: 10px + Math.mod(index * 53, 140) * 1px;
+            width: Math.mod(index, 3) == 0 ? 3px : 2px;
+            height: self.width;
+            border-radius: self.width / 2;
+            background: #ffffff;
+            opacity: 0.25 + Math.mod(index * 7, 5) * 0.08;
+        }
+    }
+    // Сакура: ветка с цветами в правом верхнем углу.
+    if root.season == 6: Rectangle {
+        Path {
+            x: parent.width - 180px;
+            y: 0px;
+            width: 180px;
+            height: 90px;
+            viewbox-width: 180;
+            viewbox-height: 90;
+            commands: "M180 6 C140 14 110 30 70 34 C50 36 30 46 10 70 M110 30 C104 46 96 56 84 64 M70 34 C74 20 82 12 92 8";
+            stroke: #8a5a4a;
+            stroke-width: 2px;
+            stroke-line-cap: round;
+            fill: transparent;
+            opacity: 0.6;
+        }
+        for blossom[index] in 6: Rectangle {
+            x: parent.width - 180px + (index == 0 ? 150px : index == 1 ? 112px : index == 2 ? 72px : index == 3 ? 86px : index == 4 ? 28px : 92px) - 6px;
+            y: (index == 0 ? 10px : index == 1 ? 28px : index == 2 ? 34px : index == 3 ? 62px : index == 4 ? 58px : 8px) - 6px;
+            width: 12px;
+            height: 12px;
+            border-radius: 6px;
+            background: #ffb3cf;
+            opacity: 0.7;
+            Rectangle {
+                x: 4px;
+                y: 4px;
+                width: 4px;
+                height: 4px;
+                border-radius: 2px;
+                background: #e0507f;
+            }
+        }
+    }
+}
+
+// Сценка: идёт, пока элемент существует (время — от его появления).
+export component SeasonEpisode inherits Rectangle {
+    in property <int> kind;
+    property <duration> start;
+    property <float> t: (animation-tick() - self.start) / 1s;
+    init => { self.start = animation-tick(); }
+
+    // Хеллоуин: летучая мышь пролетает слева направо.
+    if root.kind == 1: Path {
+        property <float> share: root.t / 7;
+        width: 76px;
+        height: 38px + 10px * Math.sin(root.t * 1500deg);
+        x: -70px + (parent.width + 140px) * self.share;
+        y: parent.height * 0.22 + 36px * Math.sin(root.t * 200deg) - self.height / 2;
+        viewbox-width: 64;
+        viewbox-height: 32;
+        commands: "M32 14 C29 9 25 8 22 10 C19 6 13 5 8 9 C11 10 12 12 12 14 C8 13 4 14 0 17 C6 17 10 19 12 22 C16 19 21 19 24 21 C27 18 30 18 32 20 C34 18 37 18 40 21 C43 19 48 19 52 22 C54 19 58 17 64 17 C60 14 56 13 52 14 C52 12 53 10 56 9 C51 5 45 6 42 10 C39 8 35 9 32 14 Z";
+        fill: #120818;
+        stroke: #ff9a3d;
+        stroke-width: 1.6px;
+    }
+    // Новый год: редкий снег. Сакура: лепестки — так же, медленнее и шире.
+    if root.kind == 2 || root.kind == 6: Rectangle {
+        property <bool> petals: root.kind == 6;
+        property <float> fade: clamp(min(root.t / 2, (22 - root.t) / 3), 0, 1);
+        for flake[index] in 26: Rectangle {
+            property <float> delay: Math.mod(index * 7, 26) * 0.4;
+            property <float> age: root.t - self.delay;
+            property <length> speed: (parent.petals ? 34px : 46px) + Math.mod(index * 53, 40) * 1px;
+            visible: self.age > 0;
+            x: parent.width * Math.mod(index * 0.618 + 0.13, 1) + (parent.petals ? 34px : 18px) * Math.sin((root.t + index) * (parent.petals ? 50deg : 70deg));
+            y: -20px + self.age * self.speed;
+            width: parent.petals ? 10px : 4px + Math.mod(index * 13, 4) * 1px;
+            height: parent.petals ? 5px + 2px * Math.sin((root.t * 3 + index) * 60deg) : self.width;
+            border-radius: self.height / 2;
+            background: parent.petals ? #ffb3cf : #ffffff;
+            opacity: parent.fade * (parent.petals ? 0.85 : 0.75);
+        }
+    }
+    // День кошек: котик выглядывает снизу и прячется.
+    if root.kind == 3: Rectangle {
+        property <float> up: root.t < 1 ? root.t : root.t < 4.8 ? 1 : max(0, 5.8 - root.t);
+        x: parent.width * 0.72;
+        y: parent.height - 52px * self.up;
+        width: 64px;
+        height: 54px;
+        Path {
+            width: 64px;
+            height: 54px;
+            viewbox-width: 48;
+            viewbox-height: 40;
+            commands: "M6 40 L6 14 L2 0 L16 8 C20 6 28 6 32 8 L46 0 L42 14 L42 40 Z";
+            fill: Theme.foreground;
+        }
+        for eye[index] in 2: Rectangle {
+            x: 20px + index * 18px;
+            y: 24px;
+            width: 7px;
+            height: root.t > 2.6 && root.t < 2.8 ? 1px : 8px;
+            border-radius: 3.5px;
+            background: Theme.accent;
+        }
+    }
+    // Валентинов день: сердечки поднимаются и тают.
+    if root.kind == 4: Rectangle {
+        for heart[index] in 7: Path {
+            property <float> delay: index * 0.7;
+            property <float> age: max(0, root.t - self.delay);
+            visible: root.t > self.delay;
+            width: 16px + Math.mod(index * 5, 3) * 5px;
+            height: self.width;
+            x: parent.width * (0.15 + Math.mod(index * 0.37, 0.7)) + 20px * Math.sin((root.t + index) * 90deg);
+            y: parent.height - self.age * 90px;
+            viewbox-width: 24;
+            viewbox-height: 24;
+            commands: "M12 21 C5 15 2 11.5 2 8 C2 5 4.5 3 7.2 3 C9.2 3 11 4.2 12 6 C13 4.2 14.8 3 16.8 3 C19.5 3 22 5 22 8 C22 11.5 19 15 12 21 Z";
+            fill: #ff4f7b;
+            opacity: clamp(1 - self.age / 6, 0, 0.9);
+        }
+    }
+    // День космонавтики: ракета летит по диагонали.
+    if root.kind == 5: Rectangle {
+        property <float> share: root.t / 7;
+        x: -60px + (parent.width + 120px) * self.share;
+        y: parent.height + 20px - (parent.height + 120px) * self.share - 20px * Math.sin(self.share * 180deg);
+        width: 48px;
+        height: 48px;
+        Rectangle {
+            x: 2px;
+            y: 30px;
+            width: 12px + 4px * Math.sin(root.t * 2000deg);
+            height: self.width;
+            border-radius: self.width / 2;
+            background: #ff8a3d;
+            opacity: 0.85;
+        }
+        Path {
+            width: 48px;
+            height: 48px;
+            viewbox-width: 24;
+            viewbox-height: 24;
+            commands: "M21 3 C16 3 11 6 8 11 L13 16 C18 13 21 8 21 3 Z M8 11 L4 12 L6 14 Z M13 16 L12 20 L10 18 Z M6 14 L10 18 L8 19 L5 16 Z";
+            fill: #f2f2f2;
+            stroke: #4fa3ff;
+            stroke-width: 0.6px;
+        }
+    }
+}

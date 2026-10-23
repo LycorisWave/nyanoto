@@ -1,0 +1,8 @@
+libmpcdec из Musepack SVN r495 (тот же снимок, что в Debian и Ubuntu):
+libmpc_0.1~r495.orig.tar.gz, SHA256 5182d7a30eec1b338cafc9c1706d663a6c8dc217b1d90187054512074f662202
+(совпадает с libmpc_0.1~r495-3.dsc из deb.debian.org). Взят только декодер (libmpcdec/,
+заголовки include/mpc), без mpc_reader.c (своё чтение через колбэки). Лицензия BSD-3 (COPYING).
+Своё, не из Musepack: include/mpc/minimax.h (оригинал под LGPL, нужны два макроса) и
+nyanoto_crc32.c (вместо common/crc32.c с общей таблицей без синхронизации).
+Правка в libmpcdec/mpc_decoder.c: mpc_decoder_init больше не вызывает huff_init_lut (в оригинале
+стоит FIXME «нужно вызывать один раз»); её один раз вызывает native/musepack.rs.

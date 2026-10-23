@@ -1,0 +1,504 @@
+// Значки (линии 24 × 24, как Lucide, без шрифтов), кнопки-значки и выезжающие настройки.
+// Слово остаётся подсказкой и подписью для диктора.
+
+import { Theme } from "theme.slint";
+
+// Единые размеры. Скругления 4/8/12/16, вложенные — концентрично (12 с отступом 4 → 8).
+// Анимации 120/200/320 мс, выход короче входа, без пружин.
+export global Ui {
+    out property <length> radius-small: 4px;
+    out property <length> radius: 8px;
+    out property <length> radius-large: 12px;
+    out property <length> radius-huge: 16px;
+}
+
+export global Icons {
+    out property <string> music: "M9 18 V5 L21 3 V16 M9 18 A3 3 0 1 1 3 18 A3 3 0 1 1 9 18 Z M21 16 A3 3 0 1 1 15 16 A3 3 0 1 1 21 16 Z";
+    out property <string> playlists: "M3 6 H15 M3 11 H15 M3 16 H10 M20 5 V16 M20 16 A2.5 2.5 0 1 1 15 16 A2.5 2.5 0 1 1 20 16 Z";
+    out property <string> statistics: "M4 20 H20 M7 16 V11 M12 16 V5 M17 16 V8";
+    out property <string> health: "M12 3 L19 6 V11.5 C19 16 16 19.5 12 21 C8 19.5 5 16 5 11.5 V6 Z M9 12 L11 14 L15 10";
+    // Шестерня: восемь зубцов с плоскими вершинами (прежняя походила на штурвал).
+    out property <string> settings: "M 10.13 5.25 L 10.60 2.60 L 13.40 2.60 L 13.87 5.25 L 15.45 5.91 L 17.65 4.36 L 19.64 6.35 L 18.09 8.55 L 18.75 10.13 L 21.40 10.60 L 21.40 13.40 L 18.75 13.87 L 18.09 15.45 L 19.64 17.65 L 17.65 19.64 L 15.45 18.09 L 13.87 18.75 L 13.40 21.40 L 10.60 21.40 L 10.13 18.75 L 8.55 18.09 L 6.35 19.64 L 4.36 17.65 L 5.91 15.45 L 5.25 13.87 L 2.60 13.40 L 2.60 10.60 L 5.25 10.13 L 5.91 8.55 L 4.36 6.35 L 6.35 4.36 L 8.55 5.91 Z M 14.8 12 A 2.8 2.8 0 1 1 9.2 12 A 2.8 2.8 0 1 1 14.8 12 Z";
+    out property <string> back: "M15 5 L8 12 L15 19";
+    out property <string> forward: "M9 5 L16 12 L9 19";
+    // «⋯», сетка, список.
+    out property <string> more: "M5 12 H5.01 M12 12 H12.01 M19 12 H19.01";
+    // Лупа (поиск на телефоне).
+    out property <string> search: "M18 11 A7 7 0 1 1 4 11 A7 7 0 1 1 18 11 Z M20.5 20.5 L16 16";
+    out property <string> grid: "M4 4 H10 V10 H4 Z M14 4 H20 V10 H14 Z M4 14 H10 V20 H4 Z M14 14 H20 V20 H14 Z";
+    out property <string> list: "M9 6 H20 M9 12 H20 M9 18 H20 M4.5 6 H5 M4.5 12 H5 M4.5 18 H5";
+    // Следующий и предыдущий трек — треугольник и черта, как на кнопках.
+    out property <string> next: "M6 6 L15 12 L6 18 Z M18 6 V18";
+    out property <string> previous: "M18 6 L9 12 L18 18 Z M6 6 V18";
+    out property <string> shuffle: "M16 3 H21 V8 M4 20 L21 3 M21 16 V21 H16 M15 15 L21 21 M4 4 L9 9";
+    out property <string> repeat: "M17 2 L21 6 L17 10 M3 11 V9 A3 3 0 0 1 6 6 H21 M7 22 L3 18 L7 14 M21 13 V15 A3 3 0 0 1 18 18 H3";
+    out property <string> repeat-one: "M17 2 L21 6 L17 10 M3 11 V9 A3 3 0 0 1 6 6 H21 M7 22 L3 18 L7 14 M21 13 V15 A3 3 0 0 1 18 18 H3 M11 10.5 L12.5 9.5 V14.5";
+    out property <string> queue: "M3 6 H16 M3 11 H16 M3 16 H11 M15 14 L21 17.5 L15 21 Z";
+    // Текст песни — буква «Т», как в Яндекс Музыке.
+    out property <string> lyrics: "M5 7 V5 H19 V7 M12 5 V19 M9 19 H15";
+    out property <string> info: "M12 21 A9 9 0 1 1 12 3 A9 9 0 1 1 12 21 Z M12 16 V11 M12 7.6 V7.5";
+    out property <string> heart: "M12 20 C12 20 3.5 14.5 3.5 8.75 A4.25 4.25 0 0 1 12 7 A4.25 4.25 0 0 1 20.5 8.75 C20.5 14.5 12 20 12 20 Z";
+    out property <string> plus: "M12 5 V19 M5 12 H19";
+    out property <string> volume: "M4 9.5 H7.5 L12 5.5 V18.5 L7.5 14.5 H4 Z M15.5 9 A4 4 0 0 1 15.5 15 M18.5 6.5 A7.5 7.5 0 0 1 18.5 17.5";
+    out property <string> volume-low: "M4 9.5 H7.5 L12 5.5 V18.5 L7.5 14.5 H4 Z M15.5 9 A4 4 0 0 1 15.5 15";
+    out property <string> mute: "M4 9.5 H7.5 L12 5.5 V18.5 L7.5 14.5 H4 Z M16 9.5 L21 14.5 M21 9.5 L16 14.5";
+    out property <string> equalizer: "M5 21 V14 M5 10 V3 M12 21 V12 M12 8 V3 M19 21 V16 M19 12 V3 M2.5 14 H7.5 M9.5 8 H14.5 M16.5 16 H21.5";
+    out property <string> chapters: "M6 3 H18 V21 L12 16.5 L6 21 Z";
+    // Полумесяц потолще.
+    out property <string> sleep: "M20 14.5 A8 8 0 1 1 9.5 4 A9.5 9.5 0 0 0 20 14.5 Z";
+    out property <string> close: "M6 6 L18 18 M18 6 L6 18";
+    // Кнопки окна в своём заголовке.
+    out property <string> minimize: "M6 12 H18";
+    out property <string> maximize: "M6 6 H18 V18 H6 Z";
+    out property <string> restore: "M5 9 H15 V19 H5 Z M9 9 V5 H19 V15 H15";
+    out property <string> collapse: "M6 9 L12 15 L18 9";
+    out property <string> expand: "M4 9 V4 H9 M15 4 H20 V9 M20 15 V20 H15 M9 20 H4 V15";
+    out property <string> shrink: "M9 4 V9 H4 M20 9 H15 V4 M15 20 V15 H20 M4 15 H9 V20";
+    out property <string> edit: "M4 20 L4.5 16 L15.5 5 L19 8.5 L8 19.5 Z M13.5 7 L17 10.5";
+    out property <string> play: "M7 4.5 L19.5 12 L7 19.5 Z";
+    out property <string> queue-add: "M3 6 H15 M3 11 H15 M3 16 H10 M18 13 V21 M14 17 H22";
+    out property <string> convert: "M4 8 H17 L13.5 4.5 M20 16 H7 L10.5 19.5";
+    out property <string> trash: "M4 7 H20 M9 7 V4.5 H15 V7 M6.5 7 L7.5 20 H16.5 L17.5 7 M10 11 V16 M14 11 V16";
+    // Солнце — плейлист дня.
+    out property <string> sun: "M16 12 A4 4 0 1 1 8 12 A4 4 0 1 1 16 12 M12 2.5 V4.5 M12 19.5 V21.5 M2.5 12 H4.5 M19.5 12 H21.5 M5.3 5.3 L6.7 6.7 M17.3 17.3 L18.7 18.7 M5.3 18.7 L6.7 17.3 M17.3 6.7 L18.7 5.3";
+    // Круговая стрелка — собрать заново.
+    out property <string> refresh: "M20 12 A8 8 0 1 1 12 4 C14.24 4 16.38 4.89 17.99 6.43 L20 8.5 M20 4 V8.5 H15.5";
+    out property <string> sparkle: "M12 3 L13.6 8.4 L19 10 L13.6 11.6 L12 17 L10.4 11.6 L5 10 L10.4 8.4 Z M18.5 15 L19.2 17.3 L21.5 18 L19.2 18.7 L18.5 21 L17.8 18.7 L15.5 18 L17.8 17.3 Z";
+    out property <string> save: "M5 4 H16 L20 8 V20 H4 V4 Z M8 4 V9 H15 V4 M8 20 V14 H16 V20";
+    out property <string> folder: "M3 7 V18 A1 1 0 0 0 4 19 H20 A1 1 0 0 0 21 18 V9 A1 1 0 0 0 20 8 H11 L9 5 H4 A1 1 0 0 0 3 6 Z";
+    out property <string> rules: "M3 7 H13 M17 7 H21 M3 17 H7 M11 17 H21 M15 5 V9 M9 15 V19";
+    // Повтор отрезка A–B: две метки и стрелка между ними.
+    out property <string> ab: "M4 5 V19 M20 5 V19 M8 12 H16 M13 9 L16 12 L13 15";
+}
+
+// Подсказка одна на всё окно: её слой — последним в окне, поверх всего.
+export global Tip {
+    in-out property <string> text;
+    // Точка, к которой привязана подсказка (в координатах окна), и сторона.
+    in-out property <length> x;
+    in-out property <length> y;
+    in-out property <bool> right;
+}
+
+// Сам уходит через 4 с: кнопка могла исчезнуть раньше мыши.
+export component TipLayer inherits Rectangle {
+    property <length> margin: 6px;
+    if Tip.text != "": Rectangle {
+        property <bool> shown;
+        opacity: self.shown ? 1 : 0;
+        animate opacity { duration: 120ms; easing: ease-out; }
+        init => { self.shown = true; }
+        property <length> w: label.preferred-width + 14px;
+        property <length> h: label.preferred-height + 8px;
+        x: Tip.right ? Tip.x : clamp(Tip.x - self.w / 2, parent.margin, parent.width - self.w - parent.margin);
+        y: Tip.right ? Tip.y - self.h / 2 : clamp(Tip.y, parent.margin, parent.height - self.h - parent.margin);
+        width: self.w;
+        height: self.h;
+        border-radius: Ui.radius;
+        background: #000000d8;
+        label := Text {
+            text: Tip.text;
+            font-size: 12px;
+            color: #ffffff;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        Timer {
+            interval: 4s;
+            running: true;
+            triggered => { Tip.text = ""; }
+        }
+    }
+}
+
+// Значок: линии толщиной 1,8 в квадрате 24 × 24.
+export component Icon inherits Path {
+    in property <string> icon;
+    in property <color> tint: Theme.foreground;
+    in property <bool> filled;
+    width: 20px;
+    height: 20px;
+    viewbox-width: 24;
+    viewbox-height: 24;
+    commands: root.icon;
+    stroke: root.tint;
+    stroke-width: 1.8px;
+    stroke-line-cap: round;
+    stroke-line-join: round;
+    fill: root.filled ? root.tint : transparent;
+    animate stroke, fill { duration: 160ms; easing: ease-out; }
+}
+
+// Кнопка-значок. Размер не меняется никогда: число — в углу, таймер — кольцом.
+export component IconButton inherits Rectangle {
+    callback clicked;
+    in property <string> icon;
+    in property <string> label;
+    in property <bool> active;
+    // Подсвечивать фон, когда включено (у сердечка нет: светится только оно).
+    in property <bool> highlight: true;
+    in property <bool> filled;
+    // Число или буква в углу — поверх кнопки, её размер не меняется.
+    in property <string> badge;
+    // Кольцо вокруг значка (сколько до сна).
+    in property <string> ring;
+    in property <color> tint: Theme.foreground;
+    in property <length> size: 32px;
+    in property <length> glyph: 20px;
+    // Подсказка справа, иначе над кнопкой (у верха окна — под).
+    in property <bool> tip-right;
+    in property <bool> enabled: true;
+    property <bool> hovered: area.has-hover;
+    property <bool> tipped;
+    property <bool> popping;
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-enabled: root.enabled;
+    accessible-action-default => { if (root.enabled) { root.clicked(); } }
+    opacity: root.enabled ? 1 : 0.35;
+    width: root.size;
+    height: root.size;
+    border-radius: Ui.radius;
+    background: area.pressed ? Theme.surface.darker(15%) : area.has-hover ? Theme.surface : root.active && root.highlight ? Theme.accent.transparentize(82%) : transparent;
+    animate background { duration: 140ms; easing: ease-out; }
+    area := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => {
+            Tip.text = "";
+            root.clicked();
+        }
+    }
+    if root.ring != "": Path {
+        x: (root.width - self.width) / 2;
+        y: (root.height - self.height) / 2;
+        width: root.glyph + 8px;
+        height: root.glyph + 8px;
+        viewbox-width: 24;
+        viewbox-height: 24;
+        commands: root.ring;
+        stroke: Theme.accent;
+        stroke-width: 2px;
+        stroke-line-cap: round;
+        fill: transparent;
+    }
+    Icon {
+        property <length> side: area.pressed ? root.glyph * 0.84 : root.popping ? root.glyph * 1.22 : root.glyph;
+        x: (root.width - self.width) / 2;
+        y: (root.height - self.height) / 2;
+        width: self.side;
+        height: self.side;
+        animate width, height { duration: 140ms; easing: ease-out; }
+        icon: root.icon;
+        filled: root.filled;
+        tint: root.active ? Theme.accent : root.tint;
+        opacity: root.active || area.has-hover ? 1 : 0.8;
+        animate opacity { duration: 140ms; }
+    }
+    if root.badge != "": Rectangle {
+        property <bool> shown;
+        x: root.width - self.width * 0.8;
+        y: -3px;
+        height: 15px;
+        width: max(15px, badge-text.preferred-width + 7px);
+        border-radius: 7.5px;
+        background: Theme.accent;
+        opacity: self.shown ? 1 : 0;
+        animate opacity { duration: 160ms; }
+        init => { self.shown = true; }
+        badge-text := Text {
+            text: root.badge;
+            font-size: 9px;
+            font-weight: 700;
+            color: Theme.accent-foreground;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+    // Вспышка: значок на миг крупнее и обратно.
+    Timer {
+        interval: 150ms;
+        running: root.popping;
+        triggered => { root.popping = false; }
+    }
+    changed active => {
+        if (root.active) {
+            root.popping = true;
+        }
+    }
+    changed badge => {
+        if (root.badge != "") {
+            root.popping = true;
+        }
+    }
+    Timer {
+        interval: 500ms;
+        running: area.has-hover && !root.tipped && root.label != "";
+        triggered => {
+            root.tipped = true;
+            Tip.right = root.tip-right;
+            if (root.tip-right) {
+                Tip.x = root.absolute-position.x + root.width + 6px;
+                Tip.y = root.absolute-position.y + root.height / 2;
+            } else {
+                Tip.x = root.absolute-position.x + root.width / 2;
+                Tip.y = root.absolute-position.y > 40px ? root.absolute-position.y - 30px : root.absolute-position.y + root.height + 6px;
+            }
+            Tip.text = root.label;
+        }
+    }
+    changed hovered => {
+        if (!root.hovered) {
+            root.tipped = false;
+            if (Tip.text == root.label) {
+                Tip.text = "";
+            }
+        }
+    }
+}
+
+// Картинка, перетекающая в новую при смене.
+export component CrossImage inherits Rectangle {
+    in property <image> source;
+    in property <ImageFit> fit: cover;
+    property <bool> flip: true;
+    property <image> first;
+    property <image> second;
+    init => { root.first = root.source; }
+    changed source => {
+        if (root.flip) {
+            root.second = root.source;
+        } else {
+            root.first = root.source;
+        }
+        root.flip = !root.flip;
+    }
+    // Скрытая картинка не рисуется вовсе (а не прозрачной поверх видимой).
+    Image {
+        width: 100%;
+        height: 100%;
+        source: root.first;
+        image-fit: root.fit;
+        opacity: root.flip ? 1 : 0;
+        visible: self.opacity > 0.001;
+        animate opacity { duration: 280ms; easing: ease-out; }
+    }
+    Image {
+        width: 100%;
+        height: 100%;
+        source: root.second;
+        image-fit: root.fit;
+        opacity: root.flip ? 0 : 1;
+        visible: self.opacity > 0.001;
+        animate opacity { duration: 280ms; easing: ease-out; }
+    }
+}
+
+// Надпись, которая при смене плавно перетекает в новую (название трека).
+export component CrossText inherits Rectangle {
+    in property <string> text;
+    in property <length> font-size: 14px;
+    in property <int> font-weight: 400;
+    in property <color> tint: Theme.foreground;
+    in property <TextHorizontalAlignment> horizontal-alignment: left;
+    property <bool> flip: true;
+    property <string> first;
+    property <string> second;
+    init => { root.first = root.text; }
+    changed text => {
+        if (root.flip) {
+            root.second = root.text;
+        } else {
+            root.first = root.text;
+        }
+        root.flip = !root.flip;
+    }
+    min-height: one.preferred-height;
+    preferred-height: one.preferred-height;
+    one := Text {
+        width: 100%;
+        text: root.first;
+        font-size: root.font-size;
+        font-weight: root.font-weight;
+        color: root.tint;
+        horizontal-alignment: root.horizontal-alignment;
+        overflow: elide;
+        opacity: root.flip ? 1 : 0;
+        visible: self.opacity > 0.001;
+        animate opacity { duration: 240ms; easing: ease-out; }
+    }
+    Text {
+        width: 100%;
+        text: root.second;
+        font-size: root.font-size;
+        font-weight: root.font-weight;
+        color: root.tint;
+        horizontal-alignment: root.horizontal-alignment;
+        overflow: elide;
+        opacity: root.flip ? 0 : 1;
+        visible: self.opacity > 0.001;
+        animate opacity { duration: 240ms; easing: ease-out; }
+    }
+}
+
+// Раздел в боковой полосе: значок, выбранный — с полоской акцента слева.
+export component NavItem inherits Rectangle {
+    callback clicked;
+    in property <string> icon;
+    in property <string> label;
+    in property <bool> selected;
+    accessible-role: tab;
+    accessible-label: root.label;
+    accessible-item-selected: root.selected;
+    accessible-action-default => { root.clicked(); }
+    height: 44px;
+    Rectangle {
+        x: 0;
+        width: 3px;
+        height: root.selected ? 22px : 0px;
+        y: (parent.height - self.height) / 2;
+        border-radius: 2px;
+        background: Theme.accent;
+        animate height { duration: 150ms; easing: ease-out; }
+    }
+    HorizontalLayout {
+        alignment: center;
+        IconButton {
+            icon: root.icon;
+            label: root.label;
+            size: 40px;
+            glyph: 22px;
+            tip-right: true;
+            active: root.selected;
+            clicked => { root.clicked(); }
+        }
+    }
+}
+
+// Появление из прозрачности и чуть снизу.
+export component Appear inherits Rectangle {
+    property <bool> shown;
+    opacity: root.shown ? 1 : 0;
+    animate opacity { duration: 200ms; easing: ease-out; }
+    // Стартуем в первый свободный миг, иначе анимация пропадёт за загрузкой.
+    Timer {
+        interval: 1ms;
+        running: !root.shown;
+        triggered => { root.shown = true; }
+    }
+    Rectangle {
+        y: root.shown ? 0px : 14px;
+        width: root.width;
+        height: root.height;
+        animate y { duration: 260ms; easing: ease-out; }
+        @children
+    }
+}
+
+// Перемотка: при наведении толще, подсветка до курсора и время над ним.
+export component SeekBar inherits Rectangle {
+    in property <float> position;
+    in property <float> duration;
+    in property <string> label;
+    in property <color> track: Theme.foreground.transparentize(82%);
+    in property <color> preview: Theme.foreground.transparentize(62%);
+    in property <color> fill: Theme.accent;
+    callback seek(float);
+    callback dragging(bool);
+    property <float> span: max(root.duration, 0.001);
+    property <float> aim: clamp(area.mouse-x / max(root.width, 1px), 0, 1) * root.span;
+    property <bool> hot: area.has-hover || area.pressed;
+    property <float> shown-at: area.pressed ? root.aim : root.position;
+    property <int> whole: Math.floor(root.aim);
+    min-width: 100px;
+    height: 24px;
+    accessible-role: slider;
+    accessible-label: root.label;
+    accessible-value: Math.round(root.position) + "";
+    accessible-value-minimum: 0;
+    accessible-value-maximum: root.duration;
+    accessible-value-step: 5;
+    accessible-action-increment => { root.seek(min(root.position + 5, root.duration)); }
+    accessible-action-decrement => { root.seek(max(root.position - 5, 0)); }
+    accessible-action-set-value(value) => { root.seek(clamp(value.to-float(), 0, root.duration)); }
+    bar := Rectangle {
+        y: (root.height - self.height) / 2;
+        height: root.hot ? 6px : 4px;
+        animate height { duration: 120ms; easing: ease-out; }
+        border-radius: self.height / 2;
+        background: root.track;
+        clip: true;
+        if root.hot: Rectangle {
+            x: 0;
+            width: parent.width * root.aim / root.span;
+            height: parent.height;
+            background: root.preview;
+        }
+        Rectangle {
+            x: 0;
+            width: parent.width * clamp(root.shown-at / root.span, 0, 1);
+            height: parent.height;
+            border-radius: parent.border-radius;
+            background: root.fill;
+        }
+    }
+    // Ручка — только когда рядом мышь.
+    Rectangle {
+        width: 12px;
+        height: 12px;
+        x: root.width * clamp(root.shown-at / root.span, 0, 1) - self.width / 2;
+        y: (root.height - self.height) / 2;
+        border-radius: 6px;
+        background: root.fill;
+        opacity: root.hot ? 1 : 0;
+        animate opacity { duration: 120ms; }
+    }
+    if area.has-hover && root.duration > 0: Rectangle {
+        property <length> w: time.preferred-width + 12px;
+        x: clamp(area.mouse-x - self.w / 2, -8px, root.width - self.w + 8px);
+        y: -26px;
+        width: self.w;
+        height: 22px;
+        border-radius: Ui.radius-small + 2px;
+        background: #000000d8;
+        time := Text {
+            text: Math.floor(root.whole / 60) + ":" + (Math.mod(root.whole, 60) < 10 ? "0" : "") + Math.mod(root.whole, 60);
+            font-size: 11px;
+            font-weight: 600;
+            color: #ffffff;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+    area := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            if (event.kind == PointerEventKind.down) {
+                root.dragging(true);
+            } else if (event.kind == PointerEventKind.up) {
+                root.seek(root.aim);
+                root.dragging(false);
+            }
+        }
+    }
+}
+
+// Зависимые настройки: выключили основную — уезжают.
+export component Reveal inherits Rectangle {
+    in property <bool> open;
+    in property <length> gap: 10px;
+    clip: true;
+    // Пока закрыто и доехало, детей нет и для диктора, и для Tab.
+    visible: root.open || self.height > 0.5px;
+    height: root.open ? inner.preferred-height + root.gap : 0px;
+    opacity: root.open ? 1 : 0;
+    animate height { duration: 220ms; easing: ease-out; }
+    animate opacity { duration: 220ms; easing: ease-out; }
+    inner := VerticalLayout {
+        y: root.gap;
+        width: root.width;
+        height: self.preferred-height;
+        spacing: 10px;
+        @children
+    }
+}

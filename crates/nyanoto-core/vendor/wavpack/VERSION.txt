@@ -1,0 +1,4 @@
+WavPack 5.9.0 (https://github.com/dbry/WavPack/releases/tag/5.9.0),
+wavpack-5.9.0.tar.xz, SHA256 b5291bc4e6d69ebbd3da3800c5bf4a70f19bb92679b23e09b3b612c1e648d1ff
+(совпадает с digest релиза на GitHub). Взяты только файлы библиотеки (src/, include/)
+без ассемблера, программ и сборочных файлов. Лицензия BSD-3 (COPYING).

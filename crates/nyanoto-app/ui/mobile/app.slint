@@ -1,0 +1,2162 @@
+// Окно телефона: вкладки снизу, мини-плеер над ними, полный плеер поверх.
+// Свойства и колбэки — те же, что у окна компьютера: build.rs вставляет их вместо `// @api`.
+
+import { ListView, Palette, ScrollView } from "std-widgets.slint";
+import { Button, ComboBox, LineEdit, Slider, Switch, WidgetWords } from "widgets.slint";
+import { Theme } from "theme.slint";
+import { Appear, CrossImage, CrossText, Icons, Icon, IconButton, Reveal, SeekBar, Tip, Ui } from "icons.slint";
+import {
+    ThemeCard, ArtistRow, BrowseRow, RootRow, AlbumRow, TrackRow, QueueRow, InfoRow, TagRow, OptionRow, GraphNode,
+    AboutRow, Words, WaveMark, EditorLine, ChapterRow, SmartRow, HealthRow, EqRow, HistoryRow, LyricRow, Tr,
+    Cover, ArtistGrid, AlbumGrid, Badge, LyricsMark, MediaButton, LyricsScroll, StageLyrics, Link, HistoryLine,
+    QueueLine, Heading, Tab, SleepMenu, Section, Divider, DailyCard, ThemeSwatch, DevBadge,
+} from "common.slint";
+import { PhoneTrack, PhoneArtist, PhoneAlbum, TabButton, MiniPlayer, Sheet, SheetTitle, OptionText, Press } from "parts.slint";
+export { Tip, Theme, WidgetWords, Palette, Tr, ThemeCard, ArtistRow, BrowseRow, RootRow, AlbumRow, TrackRow, QueueRow, InfoRow, TagRow, OptionRow, GraphNode, AboutRow, Words, WaveMark, EditorLine, ChapterRow, SmartRow, HealthRow, EqRow, HistoryRow, LyricRow }
+
+// Пункт настроек с переключателем справа.
+component Toggle inherits Rectangle {
+    in property <string> title;
+    in property <string> hint;
+    in property <bool> enabled: true;
+    in property <bool> unfinished;
+    in-out property <bool> checked;
+    callback toggled(bool);
+    height: max(switch.height, texts.height + (root.unfinished ? badge.height + 6px : 0px));
+    texts := OptionText {
+        x: 0;
+        y: 0;
+        width: root.width - switch.width - 16px;
+        title: root.title;
+        hint: root.hint;
+        dim: !root.enabled;
+    }
+    badge := DevBadge {
+        x: 0;
+        y: texts.height + 6px;
+        visible: root.unfinished;
+    }
+    switch := Switch {
+        width: self.preferred-width;
+        height: self.preferred-height;
+        x: root.width - self.width;
+        y: (root.height - self.height) / 2;
+        accessible-label: root.title;
+        enabled: root.enabled;
+        checked <=> root.checked;
+        toggled => { root.toggled(self.checked); }
+    }
+}
+
+// Пункт настроек с выбором из списка.
+component Choice inherits VerticalLayout {
+    in property <string> title;
+    in property <string> hint;
+    in property <[string]> model;
+    in-out property <int> current-index;
+    callback selected(int);
+    spacing: 6px;
+    OptionText {
+        title: root.title;
+        hint: root.hint;
+    }
+    ComboBox {
+        model: root.model;
+        current-index <=> root.current-index;
+        selected(value) => { root.selected(root.current-index); }
+    }
+}
+
+// Пустая страница: текст посередине.
+component Empty inherits Text {
+    wrap: word-wrap;
+    color: Theme.foreground;
+    opacity: 0.6;
+    horizontal-alignment: center;
+    vertical-alignment: center;
+    vertical-stretch: 1;
+}
+
+export component AppWindow inherits Window {
+    title: "Nyanoto";
+    background: Theme.background;
+    default-font-family: Theme.font-family;
+    // @api
+
+    // Вырез экрана и системные полосы.
+    property <length> inset-top: root.safe-area-insets.top;
+    property <length> inset-bottom: root.safe-area-insets.bottom;
+    // Вкладка снизу по странице.
+    property <int> tab: root.page == 4 || root.page == 5 ? 1 : root.page == 6 ? 2 : root.page == 7 || root.page == 8 || root.page == 10 ? 3 : 0;
+    // Страницы, с которых есть куда вернуться.
+    property <bool> deep: root.page == 1 || root.page == 2 || root.page == 3 || root.page == 5 || root.page == 8 || root.page == 9 || root.page == 10;
+    property <bool> searching;
+    // Образец темы в настройках: три в ряд.
+    property <length> swatch-side: (root.width - 24px - 32px - 20px) / 3;
+    // Полный плеер: обложка или текст.
+    property <bool> show-lyrics;
+    // Короткое сообщение внизу (строка состояния).
+    property <bool> toast;
+    changed status => {
+        if (root.status != "") {
+            root.toast = true;
+        }
+    }
+    // Свернули полный плеер — «Назад» снова ходит по страницам.
+    focus-keys => { keys.focus(); }
+    // Что закрывает «Назад»: окно поверх, полный плеер, поиск, страницу; на главной — в фон.
+    back-commit => {
+        if (root.browse-open) {
+            root.browse-close();
+        } else if (root.picker-open) {
+            root.picker-close();
+        } else if (root.confirm-open) {
+            root.confirm-cancel();
+        } else if (root.warning-open) {
+            root.warning-cancel();
+        } else if (root.folder-choice-open) {
+            root.folder-choice(-1);
+        } else if (root.info-open) {
+            root.info-close();
+        } else if (root.quality-open) {
+            root.quality-close();
+        } else if (root.sleep-menu-open) {
+            root.sleep-menu-open = false;
+        } else if (root.full-open) {
+            root.full-toggle();
+        } else if (root.searching) {
+            root.searching = false;
+            keys.focus();
+            root.query = "";
+            root.search("");
+        } else if (root.deep) {
+            root.back();
+        } else if (root.page != 0) {
+            root.go(0);
+        } else {
+            root.leave();
+        }
+    }
+    // Открыто окно поверх.
+    property <bool> sheet-open: root.browse-open || root.picker-open || root.confirm-open || root.warning-open || root.folder-choice-open || root.info-open || root.quality-open || root.sleep-menu-open;
+    // Есть ли куда вернуться внутри: нет — жест «Назад» ведёт система (предпросмотр рабочего стола).
+    property <bool> can-back: self.sheet-open || root.full-open || root.searching || root.deep || root.page != 0;
+    changed can-back => { root.back-possible(self.can-back); }
+    init => { root.back-possible(self.can-back); }
+    // Что приоткрывает жест «Назад»: 2 окно поверх, 1 полный плеер, 0 страницу.
+    property <int> peek-layer: self.sheet-open ? 2 : root.full-open ? 1 : self.can-back ? 0 : -1;
+
+    keys := FocusScope {
+        width: 100%;
+        height: 100%;
+        init => { self.focus(); }
+        key-pressed(event) => {
+            if (event.text != Key.Back) {
+                return reject;
+            }
+            root.back-commit();
+            return accept;
+        }
+
+        VerticalLayout {
+            padding-top: root.inset-top;
+            // Шапка: назад, заголовок или поиск, вид.
+            HorizontalLayout {
+                height: 56px;
+                padding-left: 8px;
+                padding-right: 8px;
+                spacing: 4px;
+                if root.deep || root.searching: VerticalLayout {
+                    alignment: center;
+                    IconButton {
+                        size: 44px;
+                        glyph: 22px;
+                        icon: Icons.back;
+                        label: Tr.w.back;
+                        clicked => {
+                            if (root.searching) {
+                                root.searching = false;
+                                keys.focus();
+                                root.query = "";
+                                root.search("");
+                            } else {
+                                root.back();
+                            }
+                        }
+                    }
+                }
+                if !root.searching: Text {
+                    text: root.crumb;
+                    font-size: 22px;
+                    font-weight: 700;
+                    color: Theme.foreground;
+                    vertical-alignment: center;
+                    overflow: elide;
+                    horizontal-stretch: 1;
+                }
+                if root.searching: VerticalLayout {
+                    alignment: center;
+                    horizontal-stretch: 1;
+                    search := LineEdit {
+                        placeholder-text: Tr.w.search-placeholder;
+                        font-size: 16px;
+                        text <=> root.query;
+                        edited(text) => { root.search(text); }
+                        init => { self.focus(); }
+                    }
+                }
+                if !root.searching && root.tab == 0: VerticalLayout {
+                    alignment: center;
+                    IconButton {
+                        size: 44px;
+                        glyph: 22px;
+                        icon: Icons.search;
+                        label: Tr.w.search-placeholder;
+                        clicked => { root.searching = true; }
+                    }
+                }
+                if !root.searching && (root.page == 0 || root.page == 1) && !root.empty: VerticalLayout {
+                    alignment: center;
+                    property <bool> grid: root.page == 0 ? root.artists-grid : root.albums-grid;
+                    IconButton {
+                        size: 44px;
+                        glyph: 20px;
+                        icon: parent.grid ? Icons.list : Icons.grid;
+                        label: parent.grid ? Tr.w.view-list : Tr.w.view-grid;
+                        clicked => {
+                            if (root.page == 0) {
+                                root.artists-grid = !root.artists-grid;
+                                root.view-changed(0, root.artists-grid);
+                            } else {
+                                root.albums-grid = !root.albums-grid;
+                                root.view-changed(1, root.albums-grid);
+                            }
+                        }
+                    }
+                }
+                if !root.searching && root.page == 2: VerticalLayout {
+                    alignment: center;
+                    IconButton {
+                        size: 44px;
+                        glyph: 22px;
+                        icon: Icons.queue;
+                        label: Tr.w.queue;
+                        clicked => { root.queue-open(); }
+                    }
+                }
+            }
+            // Сканирование: тонкая полоска.
+            Rectangle {
+                height: 2px;
+                background: root.scan-progress >= 0 ? Theme.foreground.transparentize(88%) : transparent;
+                if root.scan-progress >= 0: Rectangle {
+                    x: 0;
+                    width: parent.width * clamp(root.scan-progress, 0.03, 1);
+                    background: Theme.accent;
+                }
+            }
+
+            // Страницы. Жест «Назад» сдвигает страницу за пальцем, под ней — тёмный фон.
+            Rectangle {
+                vertical-stretch: 1;
+                clip: true;
+                background: Theme.deep;
+                pages := Rectangle {
+                    property <float> peek: root.peek-layer == 0 ? root.back-progress : 0;
+                    x: (root.back-edge == 0 ? 1 : -1) * self.peek * 56px;
+                    width: parent.width;
+                    height: parent.height;
+                    border-radius: self.peek * 28px;
+                    clip: true;
+                    background: Theme.background;
+
+                    if root.storage-denied: Appear {
+                        VerticalLayout {
+                            alignment: center;
+                            padding: 24px;
+                            spacing: 14px;
+                            Text {
+                                text: Tr.w.storage-title;
+                                font-size: 20px;
+                                font-weight: 700;
+                                color: Theme.foreground;
+                                horizontal-alignment: center;
+                                wrap: word-wrap;
+                            }
+                            Text {
+                                text: Tr.w.storage-hint;
+                                color: Theme.foreground;
+                                opacity: 0.7;
+                                horizontal-alignment: center;
+                                wrap: word-wrap;
+                            }
+                            HorizontalLayout {
+                                alignment: center;
+                                Button {
+                                    text: Tr.w.storage-grant;
+                                    primary: true;
+                                    clicked => { root.storage-ask(); }
+                                }
+                            }
+                        }
+                    }
+
+                    if !root.storage-denied && root.empty && root.page == 0: Appear {
+                        VerticalLayout {
+                            alignment: center;
+                            padding: 24px;
+                            spacing: 14px;
+                            Text {
+                                text: Tr.w.library-empty;
+                                font-size: 18px;
+                                color: Theme.foreground;
+                                horizontal-alignment: center;
+                                wrap: word-wrap;
+                            }
+                            HorizontalLayout {
+                                alignment: center;
+                                Button {
+                                    text: Tr.w.choose-folder;
+                                    primary: true;
+                                    clicked => { root.add-folder(); }
+                                }
+                            }
+                        }
+                    }
+
+                    if !root.storage-denied && !root.empty && root.page == 0 && root.artists-grid: Appear {
+                        ArtistGrid {
+                            rows: root.artists;
+                            open(index) => { root.open-artist(index); }
+                            shown(index) => { root.artist-tile-shown(index); }
+                        }
+                    }
+                    if !root.storage-denied && !root.empty && root.page == 0 && !root.artists-grid: Appear {
+                        ListView {
+                            for row[index] in root.artists: PhoneArtist {
+                                data: row;
+                                clicked => { root.open-artist(index); }
+                            }
+                        }
+                    }
+
+                    // Исполнитель: шапка и альбомы.
+                    if root.page == 1: Appear {
+                        VerticalLayout {
+                            HorizontalLayout {
+                                padding-left: 16px;
+                                padding-right: 16px;
+                                padding-bottom: 8px;
+                                spacing: 14px;
+                                height: 92px;
+                                Cover {
+                                    width: 76px;
+                                    height: 76px;
+                                    border-radius: 38px;
+                                    letter: root.artist-letter;
+                                    source: root.artist-avatar;
+                                }
+                                VerticalLayout {
+                                    alignment: center;
+                                    spacing: 6px;
+                                    Text {
+                                        text: root.artist-detail;
+                                        font-size: 13px;
+                                        color: Theme.foreground;
+                                        opacity: 0.65;
+                                        overflow: elide;
+                                    }
+                                    if root.artist-avatar-editable: HorizontalLayout {
+                                        alignment: start;
+                                        spacing: 8px;
+                                        Button {
+                                            text: Tr.w.avatar-choose;
+                                            clicked => { root.choose-avatar(); }
+                                        }
+                                        if root.artist-own-avatar: Button {
+                                            text: Tr.w.avatar-remove;
+                                            clicked => { root.remove-avatar(); }
+                                        }
+                                    }
+                                }
+                            }
+                            if root.albums-grid: AlbumGrid {
+                                vertical-stretch: 1;
+                                rows: root.albums;
+                                open(index) => { root.open-album(index); }
+                            }
+                            if !root.albums-grid: ListView {
+                                vertical-stretch: 1;
+                                for row[index] in root.albums: PhoneAlbum {
+                                    data: row;
+                                    clicked => { root.open-album(index); }
+                                }
+                            }
+                        }
+                    }
+
+                    // Альбом: обложка, кнопки, треки.
+                    if root.page == 2: Appear {
+                        ScrollView {
+                            // Шапка прокручивается вместе со списком.
+                            VerticalLayout {
+                                alignment: start;
+                                HorizontalLayout {
+                                    padding: 16px;
+                                    padding-top: 4px;
+                                    spacing: 14px;
+                                    Cover {
+                                        width: 120px;
+                                        height: 120px;
+                                        source: root.album-cover;
+                                    }
+                                    VerticalLayout {
+                                        alignment: center;
+                                        spacing: 6px;
+                                        Text {
+                                            text: root.album-artist;
+                                            font-size: 16px;
+                                            font-weight: 600;
+                                            color: Theme.foreground;
+                                            overflow: elide;
+                                        }
+                                        Text {
+                                            text: root.album-detail;
+                                            font-size: 12px;
+                                            color: Theme.foreground;
+                                            opacity: 0.6;
+                                            overflow: elide;
+                                        }
+                                        HorizontalLayout {
+                                            alignment: start;
+                                            spacing: 8px;
+                                            MediaButton {
+                                                kind: 0;
+                                                primary: true;
+                                                width: 56px;
+                                                height: 40px;
+                                                label: Tr.w.play-album;
+                                                clicked => { root.play-album(); }
+                                            }
+                                            VerticalLayout {
+                                                alignment: center;
+                                                IconButton {
+                                                    size: 40px;
+                                                    icon: Icons.queue-add;
+                                                    label: Tr.w.add-to-queue;
+                                                    clicked => { root.queue-album(); }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                for row[index] in root.tracks: PhoneTrack {
+                                    data: row;
+                                    clicked => { root.track-clicked(0, index); }
+                                    like => { root.track-like(0, index); }
+                                    add => { root.track-add(0, index); }
+                                    badge => { root.track-badge(0, index); }
+                                }
+                            }
+                        }
+                    }
+
+                    // Поиск.
+                    if root.page == 3: Appear {
+                        ScrollView {
+                            VerticalLayout {
+                                alignment: start;
+                                if root.found-artists.length > 0: HorizontalLayout {
+                                    padding-left: 16px;
+                                    padding-top: 6px;
+                                    height: 30px;
+                                    Heading { text: Tr.w.artists; }
+                                }
+                                for row[index] in root.found-artists: PhoneArtist {
+                                    data: row;
+                                    clicked => {
+                                        root.searching = false;
+                                        keys.focus();
+                                        root.open-found-artist(index);
+                                    }
+                                }
+                                if root.found-tracks.length > 0: HorizontalLayout {
+                                    padding-left: 16px;
+                                    padding-top: 6px;
+                                    height: 30px;
+                                    Heading { text: Tr.w.tracks; }
+                                }
+                                for row[index] in root.found-tracks: PhoneTrack {
+                                    data: row;
+                                    clicked => { root.track-clicked(1, index); }
+                                    like => { root.track-like(1, index); }
+                                    add => { root.track-add(1, index); }
+                                    badge => { root.track-badge(1, index); }
+                                }
+                                if root.found-artists.length == 0 && root.found-tracks.length == 0: Text {
+                                    height: 120px;
+                                    text: Tr.w.nothing-found;
+                                    color: Theme.foreground;
+                                    opacity: 0.6;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    // Плейлисты: новый, плейлист дня, список.
+                    if root.page == 4: Appear {
+                        VerticalLayout {
+                            HorizontalLayout {
+                                padding-left: 16px;
+                                padding-right: 12px;
+                                spacing: 8px;
+                                height: 52px;
+                                VerticalLayout {
+                                    alignment: center;
+                                    horizontal-stretch: 1;
+                                    LineEdit {
+                                        placeholder-text: Tr.w.new-playlist-name;
+                                        text <=> root.new-playlist-name;
+                                        accepted(text) => { root.create-playlist(text); }
+                                    }
+                                }
+                                VerticalLayout {
+                                    alignment: center;
+                                    IconButton {
+                                        size: 44px;
+                                        icon: Icons.plus;
+                                        label: Tr.w.create;
+                                        clicked => { root.create-playlist(root.new-playlist-name); }
+                                    }
+                                }
+                            }
+                            if root.daily-state != 0: HorizontalLayout {
+                                padding-left: 12px;
+                                padding-right: 12px;
+                                padding-bottom: 6px;
+                                DailyCard {
+                                    state: root.daily-state;
+                                    detail: root.daily-detail;
+                                    covers: root.daily-covers;
+                                    advanced: root.advanced;
+                                    open => { root.daily-open(); }
+                                    play => { root.daily-play(); }
+                                    enable => { root.daily-enable(); }
+                                    dismiss => { root.daily-dismiss(); }
+                                    force => { root.daily-force(); }
+                                }
+                            }
+                            ListView {
+                                vertical-stretch: 1;
+                                for row[index] in root.playlists: PhoneArtist {
+                                    data: row;
+                                    clicked => { root.open-playlist(index); }
+                                }
+                            }
+                        }
+                    }
+
+                    // Плейлист.
+                    if root.page == 5: Appear {
+                        VerticalLayout {
+                            HorizontalLayout {
+                                padding-left: 16px;
+                                padding-right: 12px;
+                                spacing: 8px;
+                                height: 56px;
+                                alignment: start;
+                                VerticalLayout {
+                                    alignment: center;
+                                    MediaButton {
+                                        kind: 0;
+                                        primary: true;
+                                        width: 56px;
+                                        height: 40px;
+                                        label: Tr.w.play;
+                                        clicked => { root.play-playlist(); }
+                                    }
+                                }
+                                VerticalLayout {
+                                    alignment: center;
+                                    IconButton {
+                                        size: 44px;
+                                        icon: Icons.queue-add;
+                                        label: Tr.w.add-to-queue;
+                                        enabled: root.playlist-tracks.length > 0;
+                                        clicked => { root.queue-playlist(); }
+                                    }
+                                }
+                                if root.playlist-daily: VerticalLayout {
+                                    alignment: center;
+                                    IconButton {
+                                        size: 44px;
+                                        icon: Icons.refresh;
+                                        label: Tr.w.daily-rebuild;
+                                        enabled: root.daily-state != 2;
+                                        clicked => { root.daily-rebuild(); }
+                                    }
+                                }
+                                if root.playlist-deletable: VerticalLayout {
+                                    alignment: center;
+                                    IconButton {
+                                        size: 44px;
+                                        icon: Icons.trash;
+                                        label: Tr.w.delete-playlist;
+                                        clicked => { root.delete-playlist(); }
+                                    }
+                                }
+                            }
+                            // Порядок решает пользователь: при перемешивании — только подсказка.
+                            if root.playlist-daily && root.shuffle-mode != 0 && root.playlist-tracks.length > 0: HorizontalLayout {
+                                padding-left: 16px;
+                                padding-right: 16px;
+                                padding-bottom: 4px;
+                                Text {
+                                    text: Tr.w.daily-shuffled;
+                                    font-size: 12px;
+                                    color: Theme.foreground;
+                                    opacity: 0.6;
+                                    wrap: word-wrap;
+                                }
+                            }
+                            if root.playlist-tracks.length == 0: Empty {
+                                text: root.playlist-daily ? root.daily-detail : Tr.w.playlist-empty;
+                            }
+                            if root.playlist-tracks.length > 0: ListView {
+                                vertical-stretch: 1;
+                                for row[index] in root.playlist-tracks: PhoneTrack {
+                                    data: row;
+                                    removable: !root.playlist-smart && !root.playlist-daily;
+                                    clicked => { root.track-clicked(2, index); }
+                                    like => { root.track-like(2, index); }
+                                    add => { root.track-add(2, index); }
+                                    badge => { root.track-badge(2, index); }
+                                    remove => { root.track-remove(2, index); }
+                                }
+                            }
+                        }
+                    }
+
+                    // Статистика: сводка, карта или списки.
+                    if root.page == 6: Appear {
+                        VerticalLayout {
+                            padding-left: 16px;
+                            padding-right: 16px;
+                            spacing: 6px;
+                            for row in root.stats-summary: HorizontalLayout {
+                                spacing: 8px;
+                                Text {
+                                    text: row.name;
+                                    horizontal-stretch: 1;
+                                    color: Theme.foreground;
+                                    opacity: 0.7;
+                                    overflow: elide;
+                                }
+                                Text {
+                                    text: row.value;
+                                    color: Theme.foreground;
+                                }
+                            }
+                            if root.graph-nodes.length > 0: HorizontalLayout {
+                                spacing: 4px;
+                                alignment: start;
+                                Tab {
+                                    text: Tr.w.graph-map;
+                                    selected: root.stats-view == 0;
+                                    clicked => {
+                                        root.stats-view = 0;
+                                        root.stats-view-changed(0);
+                                    }
+                                }
+                                Tab {
+                                    text: Tr.w.graph-lists;
+                                    selected: root.stats-view == 1;
+                                    clicked => {
+                                        root.stats-view = 1;
+                                        root.stats-view-changed(1);
+                                    }
+                                }
+                            }
+                            // Карта: узлы-круги поверх одного пути со всеми линиями.
+                            if root.graph-nodes.length > 0 && root.stats-view == 0: Rectangle {
+                                vertical-stretch: 1;
+                                min-height: 200px;
+                                clip: true;
+                                border-radius: Ui.radius-large;
+                                background: Theme.surface;
+                                init => {
+                                    root.graph-width = self.width;
+                                    root.graph-height = self.height;
+                                }
+                                changed width => { root.graph-width = self.width; }
+                                changed height => { root.graph-height = self.height; }
+                                Path {
+                                    width: parent.width;
+                                    height: parent.height;
+                                    viewbox-width: self.width / 1px;
+                                    viewbox-height: self.height / 1px;
+                                    commands: root.graph-links;
+                                    stroke: Theme.foreground;
+                                    stroke-width: 1px;
+                                    opacity: 0.25;
+                                }
+                                for node[index] in root.graph-nodes: Rectangle {
+                                    x: (node.x - node.r) * 1px;
+                                    y: (node.y - node.r) * 1px;
+                                    width: node.r * 2px;
+                                    height: node.r * 2px;
+                                    border-radius: node.artist ? self.width / 2 : 2px;
+                                    background: node.image.width > 0 ? transparent : node.color;
+                                    Image {
+                                        width: 100%;
+                                        height: 100%;
+                                        source: node.image;
+                                        image-fit: fill;
+                                    }
+                                    if node.artist && node.image.width == 0: Text {
+                                        width: 100%;
+                                        height: 100%;
+                                        text: node.letter;
+                                        font-size: max(9px, parent.height * 0.42);
+                                        font-weight: 600;
+                                        color: #ffffffd8;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                    TouchArea {
+                                        pointer-event(event) => {
+                                            if (event.kind == PointerEventKind.down) {
+                                                root.graph-grab(index, node.x - node.r + self.mouse-x / 1px, node.y - node.r + self.mouse-y / 1px);
+                                            } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
+                                                root.graph-release(index);
+                                            }
+                                        }
+                                        moved => {
+                                            root.graph-drag(index, node.x - node.r + self.mouse-x / 1px, node.y - node.r + self.mouse-y / 1px);
+                                        }
+                                    }
+                                }
+                                for node in root.graph-nodes: Text {
+                                    visible: node.artist;
+                                    x: node.x * 1px - self.width / 2;
+                                    y: (node.y + node.r) * 1px + 2px;
+                                    text: node.label;
+                                    font-size: 12px;
+                                    font-weight: 600;
+                                    color: Theme.foreground;
+                                }
+                            }
+                            if root.graph-nodes.length == 0 || root.stats-view == 1: ScrollView {
+                                vertical-stretch: 1;
+                                VerticalLayout {
+                                    alignment: start;
+                                    if root.top-artists.length > 0: HorizontalLayout {
+                                        height: 30px;
+                                        Heading { text: Tr.w.artists; }
+                                    }
+                                    for row in root.top-artists: HorizontalLayout {
+                                        height: 30px;
+                                        spacing: 8px;
+                                        Text {
+                                            text: row.name;
+                                            horizontal-stretch: 1;
+                                            color: Theme.foreground;
+                                            overflow: elide;
+                                            vertical-alignment: center;
+                                        }
+                                        Text {
+                                            text: row.value;
+                                            color: Theme.foreground;
+                                            opacity: 0.7;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                    if root.top-tracks.length > 0: HorizontalLayout {
+                                        height: 36px;
+                                        Heading { text: Tr.w.tracks; }
+                                    }
+                                    for row[index] in root.top-tracks: PhoneTrack {
+                                        data: row;
+                                        clicked => { root.track-clicked(3, index); }
+                                        like => { root.track-like(3, index); }
+                                        add => { root.track-add(3, index); }
+                                        badge => { root.track-badge(3, index); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Очередь: дальше и история.
+                    if root.page == 9: Appear {
+                        VerticalLayout {
+                            HorizontalLayout {
+                                padding-left: 12px;
+                                padding-right: 8px;
+                                spacing: 4px;
+                                height: 48px;
+                                Tab {
+                                    text: Tr.w.queue-next;
+                                    selected: root.queue-tab == 0;
+                                    clicked => {
+                                        root.queue-tab = 0;
+                                        root.queue-tab-changed(0);
+                                    }
+                                }
+                                Tab {
+                                    text: Tr.w.history;
+                                    selected: root.queue-tab == 1;
+                                    clicked => {
+                                        root.queue-tab = 1;
+                                        root.queue-tab-changed(1);
+                                    }
+                                }
+                                Rectangle { horizontal-stretch: 1; }
+                                if root.queue-tab == 0 && root.queue-rows.length > 0: VerticalLayout {
+                                    alignment: center;
+                                    IconButton {
+                                        size: 44px;
+                                        icon: Icons.save;
+                                        label: Tr.w.queue-save;
+                                        clicked => { root.queue-save(); }
+                                    }
+                                }
+                                if root.queue-tab == 0 && root.queue-rows.length > 0: VerticalLayout {
+                                    alignment: center;
+                                    IconButton {
+                                        size: 44px;
+                                        icon: Icons.trash;
+                                        label: Tr.w.queue-clear;
+                                        clicked => { root.queue-clear(); }
+                                    }
+                                }
+                                if root.queue-tab == 1 && root.history-rows.length > 0: VerticalLayout {
+                                    alignment: center;
+                                    IconButton {
+                                        size: 44px;
+                                        icon: Icons.trash;
+                                        label: Tr.w.history-clear;
+                                        clicked => { root.history-clear(); }
+                                    }
+                                }
+                            }
+                            if root.queue-tab == 0 && root.queue-summary != "": HorizontalLayout {
+                                padding-left: 16px;
+                                padding-right: 16px;
+                                Text {
+                                    text: root.queue-summary;
+                                    font-size: 12px;
+                                    color: Theme.foreground;
+                                    opacity: 0.6;
+                                    overflow: elide;
+                                }
+                            }
+                            if root.queue-tab == 0 && root.queue-rows.length == 0: Empty { text: Tr.w.queue-empty; }
+                            if root.queue-tab == 0 && root.queue-rows.length > 0: ListView {
+                                vertical-stretch: 1;
+                                for row[index] in root.queue-rows: QueueLine {
+                                    data: row;
+                                    first: index == 0;
+                                    last: index == root.queue-rows.length - 1;
+                                    clicked => { root.queue-jump(index); }
+                                    up => { root.queue-move(index, -1); }
+                                    down => { root.queue-move(index, 1); }
+                                    remove => { root.queue-remove(index); }
+                                }
+                            }
+                            if root.queue-tab == 1 && root.history-rows.length == 0: Empty { text: Tr.w.history-empty; }
+                            if root.queue-tab == 1 && root.history-rows.length > 0: ListView {
+                                vertical-stretch: 1;
+                                for row[index] in root.history-rows: HistoryLine {
+                                    data: row;
+                                    clicked => { root.history-play(index); }
+                                }
+                            }
+                        }
+                    }
+
+                    // Папки с музыкой.
+                    if root.page == 10: Appear {
+                        ScrollView {
+                            VerticalLayout {
+                                padding: 16px;
+                                padding-top: 0px;
+                                spacing: 12px;
+                                alignment: start;
+                                Text {
+                                    text: Tr.w.folders;
+                                    wrap: word-wrap;
+                                    font-size: 12px;
+                                    color: Theme.foreground;
+                                    opacity: 0.6;
+                                }
+                                for folder[index] in root.roots: VerticalLayout {
+                                    spacing: 6px;
+                                    Text {
+                                        text: folder.path;
+                                        color: Theme.foreground;
+                                        wrap: word-wrap;
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        ComboBox {
+                                            horizontal-stretch: 1;
+                                            model: root.classical ? [Tr.w.by-folders, Tr.w.by-tags, Tr.w.by-composers] : [Tr.w.by-folders, Tr.w.by-tags];
+                                            current-index: folder.grouping;
+                                            selected(value) => { root.root-grouping-changed(index, self.current-index); }
+                                        }
+                                        VerticalLayout {
+                                            alignment: center;
+                                            IconButton {
+                                                size: 44px;
+                                                icon: Icons.trash;
+                                                label: Tr.w.remove-folder;
+                                                clicked => { root.remove-folder(index); }
+                                            }
+                                        }
+                                    }
+                                    Divider {}
+                                }
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    alignment: start;
+                                    Button {
+                                        text: Tr.w.add-folder;
+                                        primary: true;
+                                        clicked => { root.add-folder(); }
+                                    }
+                                    Button {
+                                        text: Tr.w.rescan;
+                                        clicked => { root.rescan(); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Настройки: то, что нужно на телефоне.
+                    if root.page == 7: Appear {
+                        ScrollView {
+                            VerticalLayout {
+                                padding: 12px;
+                                padding-top: 0px;
+                                spacing: 12px;
+                                alignment: start;
+
+                                Section {
+                                    title: Tr.w.section-look;
+                                    Text {
+                                        text: Tr.w.theme;
+                                        color: Theme.foreground;
+                                    }
+                                    // Образцы тем: по три в ряд.
+                                    Rectangle {
+                                        property <int> count: root.theme-cards.length + root.theme-cards-more.length;
+                                        height: Math.ceil(self.count / 3) * (root.swatch-side * 0.35 + 52px + 8px);
+                                        for card[index] in root.theme-cards: ThemeSwatch {
+                                            x: Math.mod(index, 3) * (root.swatch-side + 10px);
+                                            y: floor(index / 3) * (self.height + 8px);
+                                            side: root.swatch-side;
+                                            data: card;
+                                            selected: root.theme-index == index;
+                                            clicked => {
+                                                root.theme-index = index;
+                                                root.theme-changed(index);
+                                            }
+                                        }
+                                        for card[index] in root.theme-cards-more: ThemeSwatch {
+                                            property <int> place: root.theme-cards.length + index;
+                                            x: Math.mod(self.place, 3) * (root.swatch-side + 10px);
+                                            y: floor(self.place / 3) * (self.height + 8px);
+                                            side: root.swatch-side;
+                                            data: card;
+                                            selected: root.theme-index == self.place;
+                                            clicked => {
+                                                root.theme-index = self.place;
+                                                root.theme-changed(self.place);
+                                            }
+                                        }
+                                    }
+                                    Toggle {
+                                        title: Tr.w.seasons;
+                                        hint: Tr.w.seasons-hint;
+                                        enabled: false;
+                                        unfinished: true;
+                                        checked: false;
+                                    }
+                                }
+
+                                Section {
+                                    title: Tr.w.section-general;
+                                    Choice {
+                                        title: Tr.w.language;
+                                        model: ["Русский", "English"];
+                                        current-index <=> root.language-index;
+                                        selected(index) => { root.language-changed(index); }
+                                    }
+                                    Divider {}
+                                    Toggle {
+                                        title: Tr.w.system-media;
+                                        hint: Tr.w.system-media-hint;
+                                        checked <=> root.system-media;
+                                        toggled(on) => { root.system-media-changed(on); }
+                                    }
+                                    Divider {}
+                                    Toggle {
+                                        title: Tr.w.advanced;
+                                        hint: Tr.w.advanced-hint;
+                                        checked <=> root.advanced;
+                                        toggled(on) => { root.advanced-changed(on); }
+                                    }
+                                }
+
+                                Section {
+                                    title: Tr.w.library;
+                                    Press {
+                                        height: 48px;
+                                        label: Tr.w.folders-title;
+                                        clicked => { root.go(10); }
+                                        HorizontalLayout {
+                                            spacing: 12px;
+                                            VerticalLayout {
+                                                alignment: center;
+                                                Icon {
+                                                    width: 22px;
+                                                    height: 22px;
+                                                    icon: Icons.folder;
+                                                }
+                                            }
+                                            Text {
+                                                text: Tr.w.folders-title;
+                                                font-size: 15px;
+                                                color: Theme.foreground;
+                                                vertical-alignment: center;
+                                                horizontal-stretch: 1;
+                                            }
+                                            VerticalLayout {
+                                                alignment: center;
+                                                Icon {
+                                                    width: 18px;
+                                                    height: 18px;
+                                                    icon: Icons.forward;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Divider {}
+                                    Toggle {
+                                        title: Tr.w.cover-cache;
+                                        hint: Tr.w.cover-cache-hint;
+                                        checked <=> root.cover-cache;
+                                        toggled(on) => { root.cover-cache-changed(on); }
+                                    }
+                                    if root.cover-cache: Toggle {
+                                        title: Tr.w.cover-disk;
+                                        hint: Tr.w.cover-disk-hint;
+                                        checked <=> root.cover-disk;
+                                        toggled(on) => { root.cover-disk-changed(on); }
+                                    }
+                                    if root.cover-cache && root.cover-disk: Choice {
+                                        title: Tr.w.cover-quality;
+                                        model: [Tr.w.cover-high, Tr.w.cover-medium, Tr.w.cover-minimal];
+                                        current-index <=> root.cover-quality;
+                                        selected(index) => { root.cover-quality-changed(index); }
+                                    }
+                                    Divider {}
+                                    Toggle {
+                                        title: Tr.w.ffmpeg;
+                                        hint: root.ffmpeg-status != "" ? root.ffmpeg-status : Tr.w.ffmpeg-hint;
+                                        checked <=> root.ffmpeg;
+                                        toggled(on) => { root.ffmpeg-changed(on); }
+                                    }
+                                    Divider {}
+                                    Toggle {
+                                        title: Tr.w.authenticity;
+                                        hint: Tr.w.authenticity-hint;
+                                        checked <=> root.authenticity;
+                                        toggled(on) => { root.authenticity-changed(on); }
+                                    }
+                                    if root.authenticity: Choice {
+                                        title: Tr.w.sensitivity;
+                                        model: [Tr.w.level-low, Tr.w.level-medium, Tr.w.level-high];
+                                        current-index <=> root.authenticity-level;
+                                        selected(index) => { root.authenticity-level-changed(index); }
+                                    }
+                                }
+
+                                Section {
+                                    title: Tr.w.section-playback;
+                                    Toggle {
+                                        title: Tr.w.auto-next;
+                                        hint: Tr.w.auto-next-hint;
+                                        checked <=> root.auto-next;
+                                        toggled(on) => { root.auto-next-changed(on); }
+                                    }
+                                    if root.auto-next: Choice {
+                                        title: "";
+                                        model: [Tr.w.order-ui, Tr.w.order-random];
+                                        current-index <=> root.auto-next-order;
+                                        selected(index) => { root.auto-next-order-changed(index); }
+                                    }
+                                    Divider {}
+                                    Toggle {
+                                        title: Tr.w.crossfade;
+                                        hint: Tr.w.crossfade-hint;
+                                        checked <=> root.crossfade;
+                                        toggled(on) => { root.crossfade-changed(on); }
+                                    }
+                                    if root.crossfade: Choice {
+                                        title: "";
+                                        model: ["2 " + Tr.w.seconds-word, "3 " + Tr.w.seconds-word, "5 " + Tr.w.seconds-word, "8 " + Tr.w.seconds-word, "12 " + Tr.w.seconds-word];
+                                        current-index <=> root.crossfade-index;
+                                        selected(index) => { root.crossfade-index-changed(index); }
+                                    }
+                                    Divider {}
+                                    Toggle {
+                                        title: Tr.w.speed;
+                                        hint: Tr.w.speed-hint;
+                                        checked <=> root.speed-enabled;
+                                        toggled(on) => { root.speed-module-changed(on); }
+                                    }
+                                    if root.speed-enabled: VerticalLayout {
+                                        spacing: 6px;
+                                        Text {
+                                            text: root.speed-text;
+                                            color: Theme.foreground;
+                                        }
+                                        Slider {
+                                            minimum: 0.25;
+                                            maximum: 3;
+                                            step: 0.05;
+                                            value <=> root.speed;
+                                            changed(value) => { root.speed-changed(value); }
+                                            released(value) => { root.speed-released(value); }
+                                        }
+                                        Toggle {
+                                            title: Tr.w.keep-pitch;
+                                            hint: Tr.w.keep-pitch-hint;
+                                            checked <=> root.keep-pitch;
+                                            toggled(on) => { root.keep-pitch-changed(on); }
+                                        }
+                                    }
+                                    Divider {}
+                                    Toggle {
+                                        title: Tr.w.device-pause;
+                                        hint: Tr.w.device-pause-hint;
+                                        checked <=> root.device-pause;
+                                        toggled(on) => { root.device-pause-changed(on); }
+                                    }
+                                    Divider {}
+                                    Toggle {
+                                        title: Tr.w.sleep-module;
+                                        hint: Tr.w.sleep-module-hint;
+                                        checked <=> root.sleep-enabled;
+                                        toggled(on) => { root.sleep-enabled-changed(on); }
+                                    }
+                                }
+
+                                Section {
+                                    title: Tr.w.section-lyrics;
+                                    Toggle {
+                                        title: Tr.w.lyrics;
+                                        hint: Tr.w.lyrics-hint;
+                                        checked <=> root.lyrics-enabled;
+                                        toggled(on) => { root.lyrics-changed(on); }
+                                    }
+                                    if root.lyrics-enabled: VerticalLayout {
+                                        spacing: 12px;
+                                        Choice {
+                                            title: Tr.w.lyrics-style;
+                                            hint: Tr.w.lyrics-style-hint;
+                                            model: [Tr.w.style-column, Tr.w.style-scenes];
+                                            current-index <=> root.lyrics-style-index;
+                                            selected(index) => { root.lyrics-style-changed(index); }
+                                        }
+                                        if root.lyrics-style-index == 1: Choice {
+                                            title: Tr.w.stage-scene;
+                                            hint: Tr.w.stage-scene-hint;
+                                            model: root.stage-scene-names;
+                                            current-index <=> root.stage-scene-index;
+                                            selected(index) => { root.stage-scene-changed(index); }
+                                        }
+                                        if root.lyrics-style-index == 1: Choice {
+                                            title: Tr.w.stage-fps;
+                                            model: root.stage-fps-names;
+                                            current-index <=> root.stage-fps-index;
+                                            selected(index) => { root.stage-fps-changed(index); }
+                                        }
+                                        if root.lyrics-style-index == 1: Toggle {
+                                            title: Tr.w.stage-fallback-power;
+                                            hint: Tr.w.stage-fallback-power-hint;
+                                            checked <=> root.stage-fallback-power;
+                                            toggled(on) => { root.stage-fallback-power-changed(on); }
+                                        }
+                                        if root.lyrics-style-index == 1 && root.stage-fallback != "": Text {
+                                            text: root.stage-fallback;
+                                            font-size: 12px;
+                                            color: Theme.foreground;
+                                            opacity: 0.6;
+                                            wrap: word-wrap;
+                                        }
+                                        Text {
+                                            text: Tr.w.lyrics-lead + " " + round(root.lyrics-lead) + " " + Tr.w.ms;
+                                            color: Theme.foreground;
+                                        }
+                                        Slider {
+                                            minimum: 0;
+                                            maximum: 1000;
+                                            step: 10;
+                                            value <=> root.lyrics-lead;
+                                            changed(value) => { root.lyrics-lead-changed(value, false); }
+                                            released(value) => { root.lyrics-lead-changed(value, true); }
+                                        }
+                                    }
+                                }
+
+                                Section {
+                                    title: Tr.w.section-stats;
+                                    Toggle {
+                                        title: Tr.w.stats-mode;
+                                        hint: Tr.w.stats-hint;
+                                        checked <=> root.statistics;
+                                        toggled(on) => { root.statistics-changed(on); }
+                                    }
+                                }
+
+                                Section {
+                                    title: Tr.w.daily-title;
+                                    Toggle {
+                                        title: Tr.w.daily-switch;
+                                        hint: Tr.w.daily-hint;
+                                        checked <=> root.daily-enabled;
+                                        toggled(on) => { root.daily-enabled-changed(on); }
+                                    }
+                                    if root.daily-status != "": Text {
+                                        text: root.daily-status;
+                                        font-size: 12px;
+                                        color: Theme.foreground;
+                                        opacity: 0.6;
+                                        wrap: word-wrap;
+                                    }
+                                    if root.daily-enabled: Choice {
+                                        title: Tr.w.daily-length;
+                                        model: ["20 " + Tr.w.daily-tracks, "30 " + Tr.w.daily-tracks, "50 " + Tr.w.daily-tracks];
+                                        current-index <=> root.daily-length-index;
+                                        selected(index) => { root.daily-length-changed(index); }
+                                    }
+                                    if root.daily-enabled: VerticalLayout {
+                                        spacing: 6px;
+                                        Text {
+                                            text: Tr.w.daily-fresh + " " + round(root.daily-fresh) + " %";
+                                            color: Theme.foreground;
+                                        }
+                                        Slider {
+                                            minimum: 0;
+                                            maximum: 100;
+                                            step: 5;
+                                            value <=> root.daily-fresh;
+                                            changed(value) => { root.daily-fresh-changed(value, false); }
+                                            released(value) => { root.daily-fresh-changed(value, true); }
+                                        }
+                                    }
+                                }
+
+                                Section {
+                                    title: Tr.w.about;
+                                    Text {
+                                        text: root.about-version;
+                                        font-size: 17px;
+                                        font-weight: 700;
+                                        color: Theme.foreground;
+                                    }
+                                    Text {
+                                        text: root.about-build;
+                                        font-size: 12px;
+                                        color: Theme.foreground;
+                                        opacity: 0.6;
+                                        wrap: word-wrap;
+                                    }
+                                    Text {
+                                        text: Tr.w.about-slint;
+                                        font-size: 12px;
+                                        color: Theme.foreground;
+                                        opacity: 0.6;
+                                        wrap: word-wrap;
+                                    }
+                                    HorizontalLayout {
+                                        alignment: start;
+                                        Button {
+                                            text: root.about-open ? Tr.w.about-hide : Tr.w.about-components;
+                                            clicked => { root.about-open = !root.about-open; }
+                                        }
+                                    }
+                                    if root.about-open: VerticalLayout {
+                                        spacing: 6px;
+                                        for row in root.about-rows: VerticalLayout {
+                                            Text {
+                                                text: row.name + " " + row.version;
+                                                color: Theme.foreground;
+                                                wrap: word-wrap;
+                                            }
+                                            Text {
+                                                text: row.license;
+                                                font-size: 12px;
+                                                color: Theme.foreground;
+                                                opacity: 0.6;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Мини-плеер.
+            if root.has-track: HorizontalLayout {
+                padding-left: 8px;
+                padding-right: 8px;
+                padding-top: 6px;
+                MiniPlayer {
+                    cover: root.now-cover;
+                    title: root.now-title;
+                    artist: root.now-owner;
+                    playing: root.playing;
+                    progress: root.duration > 0 ? root.position / root.duration : 0;
+                    open => {
+                        root.full-warmup();
+                        root.full-toggle();
+                    }
+                    toggle => { root.toggle(); }
+                    next => { root.next(); }
+                }
+            }
+
+            // Вкладки.
+            HorizontalLayout {
+                height: 64px;
+                padding-top: 4px;
+                TabButton {
+                    icon: Icons.music;
+                    label: Tr.w.music;
+                    selected: root.tab == 0;
+                    clicked => {
+                        root.searching = false;
+                        keys.focus();
+                        root.go(0);
+                    }
+                }
+                TabButton {
+                    icon: Icons.playlists;
+                    label: Tr.w.playlists;
+                    selected: root.tab == 1;
+                    clicked => {
+                        root.searching = false;
+                        keys.focus();
+                        root.go(4);
+                    }
+                }
+                if root.statistics-enabled: TabButton {
+                    icon: Icons.statistics;
+                    label: Tr.w.statistics;
+                    selected: root.tab == 2;
+                    clicked => {
+                        root.searching = false;
+                        keys.focus();
+                        root.go(6);
+                    }
+                }
+                TabButton {
+                    icon: Icons.settings;
+                    label: Tr.w.settings;
+                    selected: root.tab == 3;
+                    clicked => {
+                        root.searching = false;
+                        keys.focus();
+                        root.go(7);
+                    }
+                }
+            }
+            Rectangle {
+                height: root.inset-bottom;
+            }
+        }
+
+        // Сообщение снизу: несколько секунд.
+        if root.toast && root.status != "": Rectangle {
+            property <bool> shown;
+            init => { self.shown = true; }
+            opacity: self.shown ? 1 : 0;
+            animate opacity { duration: 200ms; easing: ease-out; }
+            x: 16px;
+            width: root.width - 32px;
+            height: toast-text.preferred-height + 20px;
+            y: root.height - root.inset-bottom - 64px - (root.has-track ? 76px : 0px) - self.height - 12px;
+            border-radius: Ui.radius-large;
+            background: Theme.foreground;
+            Timer {
+                interval: 4s;
+                running: true;
+                triggered => { root.toast = false; }
+            }
+            TouchArea {
+                clicked => { root.toast = false; }
+            }
+            toast-text := Text {
+                x: 14px;
+                width: parent.width - 28px;
+                text: root.status;
+                wrap: word-wrap;
+                color: Theme.background;
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    // Полный плеер: выезжает снизу, свайп вниз — свернуть, вбок — другой трек.
+    changed full-open => {
+        if (root.full-open) {
+            root.full-shown = true;
+        } else {
+            root.show-lyrics = false;
+            root.stage-resized(1, 0px, 0px);
+        }
+    }
+    Timer {
+        interval: 320ms;
+        running: !root.full-open && root.full-shown;
+        triggered => { root.full-shown = false; }
+    }
+    if root.full-shown: full := Rectangle {
+        property <bool> shown;
+        property <bool> up: self.shown && root.full-open;
+        // Сдвиг пальцем: вниз — свернуть, вбок — другой трек.
+        property <length> drag-y;
+        property <length> drag-x;
+        property <bool> dragging;
+        Timer {
+            interval: 1ms;
+            running: !parent.shown;
+            triggered => { parent.shown = true; }
+        }
+        property <float> peek: root.peek-layer == 1 ? root.back-progress : 0;
+        y: self.up ? self.drag-y + self.peek * 160px : root.height;
+        animate y { duration: full.dragging || root.back-progress > 0 ? 0ms : 280ms; easing: cubic-bezier(0.2, 0, 0, 1); }
+        border-radius: self.peek * 32px;
+        clip: true;
+        width: root.width;
+        height: root.height;
+        background: Theme.deep;
+        Image {
+            width: 100%;
+            height: 100%;
+            source: root.full-background;
+            image-fit: fill;
+        }
+        // Под всем: ловит протягивание там, где нет кнопок.
+        TouchArea {
+            moved => {
+                parent.dragging = true;
+                if (abs(self.mouse-y - self.pressed-y) > abs(self.mouse-x - self.pressed-x)) {
+                    parent.drag-y = max(0px, self.mouse-y - self.pressed-y);
+                    parent.drag-x = 0;
+                } else {
+                    parent.drag-x = self.mouse-x - self.pressed-x;
+                    parent.drag-y = 0;
+                }
+            }
+            pointer-event(event) => {
+                if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
+                    if (parent.drag-y > 120px) {
+                        root.full-toggle();
+                    } else if (parent.drag-x < -90px) {
+                        root.next();
+                    } else if (parent.drag-x > 90px) {
+                        root.previous();
+                    }
+                    parent.dragging = false;
+                    parent.drag-x = 0;
+                    parent.drag-y = 0;
+                }
+            }
+        }
+        VerticalLayout {
+            padding-top: root.inset-top + 8px;
+            padding-bottom: root.inset-bottom + 16px;
+            padding-left: 20px;
+            padding-right: 20px;
+            spacing: 12px;
+            // Верх: свернуть, очередь.
+            HorizontalLayout {
+                vertical-stretch: 0;
+                spacing: 4px;
+                IconButton {
+                    size: 44px;
+                    glyph: 24px;
+                    tint: #ffffff;
+                    icon: Icons.collapse;
+                    label: Tr.w.full-collapse;
+                    clicked => { root.full-toggle(); }
+                }
+                Text {
+                    text: root.full-next;
+                    font-size: 12px;
+                    color: #ffffff;
+                    opacity: 0.7;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    overflow: elide;
+                    horizontal-stretch: 1;
+                }
+                IconButton {
+                    size: 44px;
+                    glyph: 22px;
+                    tint: #ffffff;
+                    icon: Icons.queue;
+                    label: Tr.w.queue;
+                    clicked => {
+                        root.full-toggle();
+                        root.queue-open();
+                    }
+                }
+            }
+            // Середина: обложка или текст песни.
+            middle := Rectangle {
+                vertical-stretch: 1;
+                if !root.show-lyrics: Rectangle {
+                    property <length> side: min(parent.width, parent.height);
+                    width: self.side;
+                    height: self.side;
+                    x: (parent.width - self.side) / 2;
+                    y: (parent.height - self.side) / 2;
+                    border-radius: Ui.radius-huge;
+                    clip: true;
+                    background: #ffffff14;
+                    CrossImage {
+                        width: 100%;
+                        height: 100%;
+                        source: root.full-cover;
+                    }
+                }
+                if root.show-lyrics && root.lyrics-synced && root.lyrics-look == 0: LyricsScroll {
+                    width: parent.width;
+                    height: parent.height;
+                    lines: root.lyrics-lines;
+                    small-size: 18px;
+                    big-size: 24px;
+                    tint: #ffffffa0;
+                    highlight: #ffffff;
+                    align: left;
+                    line-clicked(index) => { root.lyrics-seek(index); }
+                }
+                if root.show-lyrics && root.lyrics-synced && root.lyrics-look == 1: StageLyrics {
+                    width: parent.width;
+                    height: parent.height;
+                    place: 1;
+                    frame: root.stage-frame;
+                    resized(place, width, height) => { root.stage-resized(place, width, height); }
+                }
+                if root.show-lyrics && !root.lyrics-synced: ScrollView {
+                    width: parent.width;
+                    height: parent.height;
+                    VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: root.lyrics-plain;
+                            wrap: word-wrap;
+                            font-size: 17px;
+                            color: #ffffffd0;
+                        }
+                    }
+                }
+            }
+            CrossText {
+                vertical-stretch: 0;
+                text: root.now-title;
+                font-size: 22px;
+                font-weight: 700;
+                tint: #ffffff;
+                horizontal-alignment: center;
+            }
+            HorizontalLayout {
+                vertical-stretch: 0;
+                alignment: center;
+                Link {
+                    text: root.now-owner;
+                    font-size: 15px;
+                    rest-opacity: 0.85;
+                    tint: #ffffff;
+                    clicked => { root.open-now-artist(); }
+                }
+                if root.now-album != "": Text {
+                    text: " · ";
+                    font-size: 15px;
+                    color: #ffffff;
+                    opacity: 0.85;
+                }
+                if root.now-album != "": Link {
+                    text: root.now-album;
+                    font-size: 15px;
+                    rest-opacity: 0.85;
+                    tint: #ffffff;
+                    clicked => { root.open-now-album(); }
+                }
+            }
+            HorizontalLayout {
+                vertical-stretch: 0;
+                alignment: center;
+                spacing: 8px;
+                if root.now-badge != "": VerticalLayout {
+                    alignment: center;
+                    Badge {
+                        text: root.now-badge;
+                        kind: root.now-badge-kind;
+                        clickable: root.now-badge-clickable;
+                        clicked => { root.badge-current(); }
+                    }
+                }
+                Text {
+                    text: root.now-quality;
+                    font-size: 12px;
+                    color: #ffffff;
+                    opacity: 0.7;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+            }
+            VerticalLayout {
+                vertical-stretch: 0;
+                spacing: 2px;
+                SeekBar {
+                    height: 28px;
+                    label: Tr.w.seek;
+                    position: root.position;
+                    duration: root.duration;
+                    track: #ffffff30;
+                    preview: #ffffff60;
+                    fill: #ffffff;
+                    dragging(on) => { root.seeking = on; }
+                    seek(seconds) => {
+                        root.position = seconds;
+                        root.seek(seconds);
+                    }
+                }
+                HorizontalLayout {
+                    Text {
+                        text: root.position-text;
+                        font-size: 12px;
+                        color: #ffffff;
+                        opacity: 0.8;
+                    }
+                    Rectangle { horizontal-stretch: 1; }
+                    Text {
+                        text: root.duration-text;
+                        font-size: 12px;
+                        color: #ffffff;
+                        opacity: 0.8;
+                    }
+                }
+            }
+            // Управление.
+            HorizontalLayout {
+                vertical-stretch: 0;
+                alignment: space-between;
+                VerticalLayout {
+                    alignment: center;
+                    IconButton {
+                        size: 48px;
+                        glyph: 22px;
+                        tint: #ffffff;
+                        icon: Icons.shuffle;
+                        active: root.shuffle-on;
+                        label: root.shuffle-text;
+                        clicked => { root.shuffle-cycle(); }
+                    }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    MediaButton {
+                        kind: 2;
+                        on-dark: true;
+                        width: 56px;
+                        height: 48px;
+                        label: Tr.w.previous-track;
+                        clicked => { root.previous(); }
+                    }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    MediaButton {
+                        kind: root.playing ? 1 : 0;
+                        primary: true;
+                        width: 76px;
+                        height: 60px;
+                        label: root.playing ? Tr.w.pause : Tr.w.play;
+                        clicked => { root.toggle(); }
+                    }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    MediaButton {
+                        kind: 3;
+                        on-dark: true;
+                        width: 56px;
+                        height: 48px;
+                        label: Tr.w.next-track;
+                        clicked => { root.next(); }
+                    }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    IconButton {
+                        size: 48px;
+                        glyph: 22px;
+                        tint: #ffffff;
+                        icon: root.repeat-mode == 1 ? Icons.repeat-one : Icons.repeat;
+                        active: root.repeat-on;
+                        label: root.repeat-text;
+                        clicked => { root.cycle-repeat(); }
+                    }
+                }
+            }
+            // Ещё: лайк, текст, сон, «+», сведения.
+            HorizontalLayout {
+                vertical-stretch: 0;
+                alignment: space-around;
+                IconButton {
+                    size: 44px;
+                    glyph: 22px;
+                    tint: #ffffff;
+                    icon: Icons.heart;
+                    highlight: false;
+                    filled: root.now-liked;
+                    active: root.now-liked;
+                    label: root.now-liked ? Tr.w.unlike : Tr.w.like;
+                    clicked => { root.like-current(); }
+                }
+                if root.lyrics-enabled: IconButton {
+                    size: 44px;
+                    glyph: 22px;
+                    tint: #ffffff;
+                    icon: Icons.lyrics;
+                    active: root.show-lyrics;
+                    enabled: root.full-lyrics;
+                    label: Tr.w.lyrics-button;
+                    clicked => {
+                        root.show-lyrics = !root.show-lyrics;
+                        if (!root.show-lyrics) {
+                            root.stage-resized(1, 0px, 0px);
+                        }
+                    }
+                }
+                if root.sleep-enabled: IconButton {
+                    size: 44px;
+                    glyph: 22px;
+                    tint: #ffffff;
+                    icon: Icons.sleep;
+                    ring: root.sleep-ring;
+                    active: root.sleep-on;
+                    label: root.sleep-text != "" ? root.sleep-text : Tr.w.sleep-title;
+                    clicked => {
+                        root.sleep-anchor = root.width / 2;
+                        root.sleep-cycle();
+                    }
+                }
+                IconButton {
+                    size: 44px;
+                    glyph: 22px;
+                    tint: #ffffff;
+                    icon: Icons.plus;
+                    label: Tr.w.add-menu;
+                    clicked => { root.add-current(); }
+                }
+                IconButton {
+                    size: 44px;
+                    glyph: 22px;
+                    tint: #ffffff;
+                    icon: Icons.info;
+                    label: Tr.w.track-info;
+                    clicked => { root.info-current(); }
+                }
+            }
+        }
+    }
+
+    // ↓ окна поверх
+
+    // «+»: очередь и плейлисты.
+    if root.picker-open: Sheet {
+        peek: root.peek-layer == 2 ? root.back-progress : 0;
+        tall: true;
+        inset-bottom: root.inset-bottom;
+        dismiss => { root.picker-close(); }
+        if root.picker-queue-options: SheetTitle { text: Tr.w.queue; }
+        if root.picker-queue-options: HorizontalLayout {
+            spacing: 8px;
+            Button {
+                horizontal-stretch: 1;
+                text: Tr.w.play-next;
+                clicked => { root.picker-queue(true); }
+            }
+            Button {
+                horizontal-stretch: 1;
+                text: Tr.w.add-to-queue;
+                primary: true;
+                clicked => { root.picker-queue(false); }
+            }
+        }
+        SheetTitle { text: Tr.w.add-to-playlist; }
+        ListView {
+            vertical-stretch: 1;
+            for row[index] in root.playlists: PhoneArtist {
+                data: row;
+                clicked => { root.picker-choose(index); }
+            }
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            LineEdit {
+                placeholder-text: Tr.w.new-playlist;
+                text <=> root.new-playlist-name;
+                accepted(text) => { root.picker-create(text); }
+            }
+            Button {
+                text: Tr.w.create;
+                clicked => { root.picker-create(root.new-playlist-name); }
+            }
+        }
+    }
+
+    // Сведения о треке.
+    if root.info-open: Sheet {
+        peek: root.peek-layer == 2 ? root.back-progress : 0;
+        tall: true;
+        inset-bottom: root.inset-bottom;
+        dismiss => { root.info-close(); }
+        SheetTitle { text: root.info-title; }
+        if root.info-badge != "": HorizontalLayout {
+            alignment: start;
+            Badge {
+                text: root.info-badge;
+                kind: root.info-badge-kind;
+            }
+        }
+        Text {
+            text: root.info-quality;
+            font-size: 12px;
+            color: Theme.foreground;
+            opacity: 0.7;
+            wrap: word-wrap;
+        }
+        ScrollView {
+            vertical-stretch: 1;
+            VerticalLayout {
+                spacing: 8px;
+                for row in root.info-rows: VerticalLayout {
+                    Text {
+                        text: row.name;
+                        font-size: 12px;
+                        color: Theme.foreground;
+                        opacity: 0.6;
+                    }
+                    Text {
+                        text: row.value;
+                        color: Theme.foreground;
+                        wrap: word-wrap;
+                    }
+                }
+                for tag in root.info-tags: VerticalLayout {
+                    Text {
+                        text: tag.key;
+                        font-size: 12px;
+                        color: Theme.foreground;
+                        opacity: 0.6;
+                    }
+                    Text {
+                        text: tag.value;
+                        color: Theme.foreground;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+        }
+        HorizontalLayout {
+            alignment: end;
+            Button {
+                text: Tr.w.close;
+                primary: true;
+                clicked => { root.info-close(); }
+            }
+        }
+    }
+
+    // Подлинность качества.
+    if root.quality-open: Sheet {
+        peek: root.peek-layer == 2 ? root.back-progress : 0;
+        inset-bottom: root.inset-bottom;
+        dismiss => { root.quality-close(); }
+        SheetTitle { text: Tr.w.quality-heading; }
+        Text {
+            text: root.quality-title;
+            color: Theme.foreground;
+            opacity: 0.8;
+            wrap: word-wrap;
+        }
+        Text {
+            text: root.quality-claim;
+            wrap: word-wrap;
+            color: Theme.foreground;
+        }
+        Text {
+            text: root.quality-reason;
+            wrap: word-wrap;
+            color: Theme.foreground;
+        }
+        Text {
+            text: root.quality-detected;
+            wrap: word-wrap;
+            font-weight: 600;
+            color: Theme.foreground;
+        }
+        Text {
+            text: Tr.w.heuristic-note;
+            wrap: word-wrap;
+            font-size: 12px;
+            color: Theme.foreground;
+            opacity: 0.6;
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            ComboBox {
+                horizontal-stretch: 1;
+                // Порядок — как QUALITY_LABELS в lib.rs.
+                model: ["Hi-Res", "CD", "MP3", "AAC", "Lossy"];
+                current-index <=> root.quality-label-index;
+            }
+            Button {
+                text: Tr.w.replace;
+                clicked => { root.quality-replace(root.quality-label-index); }
+            }
+        }
+        Button {
+            text: Tr.w.use-detected;
+            clicked => { root.quality-use-detected(); }
+        }
+        Button {
+            text: Tr.w.keep-as-is;
+            clicked => { root.quality-accept(); }
+        }
+        if root.quality-overridden: Button {
+            text: Tr.w.restore-check;
+            clicked => { root.quality-reset(); }
+        }
+    }
+
+    // Предупреждение: включить подлинность, выключить кэш обложек.
+    if root.warning-open: Sheet {
+        peek: root.peek-layer == 2 ? root.back-progress : 0;
+        inset-bottom: root.inset-bottom;
+        dismiss => { root.warning-cancel(); }
+        SheetTitle { text: root.warning-kind == 1 ? Tr.w.covers-warning-title : Tr.w.warning-title; }
+        Text {
+            text: root.warning-kind == 1 ? Tr.w.covers-warning-body : Tr.w.warning-body;
+            wrap: word-wrap;
+            color: Theme.foreground;
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: end;
+            Button {
+                text: Tr.w.cancel;
+                clicked => { root.warning-cancel(); }
+            }
+            Button {
+                text: root.warning-kind == 1 ? Tr.w.disable : Tr.w.enable;
+                primary: true;
+                clicked => { root.warning-confirm(); }
+            }
+        }
+    }
+
+    // Как раскладывать новую папку.
+    if root.folder-choice-open: Sheet {
+        peek: root.peek-layer == 2 ? root.back-progress : 0;
+        inset-bottom: root.inset-bottom;
+        dismiss => { root.folder-choice(-1); }
+        SheetTitle { text: Tr.w.folder-choice; }
+        Text {
+            text: root.folder-choice-path;
+            color: Theme.foreground;
+            opacity: 0.6;
+            wrap: word-wrap;
+        }
+        Button {
+            text: Tr.w.by-folders;
+            primary: true;
+            clicked => { root.folder-choice(0); }
+        }
+        Button {
+            text: Tr.w.by-tags;
+            clicked => { root.folder-choice(1); }
+        }
+        if root.classical: Button {
+            text: Tr.w.by-composers;
+            clicked => { root.folder-choice(2); }
+        }
+        Button {
+            text: Tr.w.cancel;
+            clicked => { root.folder-choice(-1); }
+        }
+    }
+
+    // Подтверждение.
+    if root.confirm-open: Sheet {
+        peek: root.peek-layer == 2 ? root.back-progress : 0;
+        tall: root.confirm-rows.length > 0;
+        inset-bottom: root.inset-bottom;
+        dismiss => { root.confirm-cancel(); }
+        SheetTitle { text: root.confirm-title; }
+        Text {
+            text: root.confirm-body;
+            wrap: word-wrap;
+            color: Theme.foreground;
+        }
+        if root.confirm-rows.length > 0: ListView {
+            vertical-stretch: 1;
+            for row in root.confirm-rows: VerticalLayout {
+                padding-bottom: 6px;
+                Text {
+                    text: row.name;
+                    color: Theme.foreground;
+                    wrap: word-wrap;
+                }
+                Text {
+                    text: row.value;
+                    font-size: 12px;
+                    color: Theme.foreground;
+                    opacity: 0.6;
+                    wrap: word-wrap;
+                }
+            }
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: end;
+            Button {
+                text: Tr.w.cancel;
+                clicked => { root.confirm-cancel(); }
+            }
+            Button {
+                text: root.confirm-yes;
+                primary: true;
+                clicked => { root.confirm-accept(); }
+            }
+        }
+    }
+
+    // Свой выбор папки или файла.
+    if root.browse-open: Sheet {
+        peek: root.peek-layer == 2 ? root.back-progress : 0;
+        tall: true;
+        inset-bottom: root.inset-bottom;
+        dismiss => { root.browse-close(); }
+        if root.browse-title != "": SheetTitle { text: root.browse-title; }
+        HorizontalLayout {
+            spacing: 6px;
+            VerticalLayout {
+                alignment: center;
+                IconButton {
+                    size: 44px;
+                    icon: Icons.back;
+                    label: Tr.w.back;
+                    clicked => { root.browse-up(); }
+                }
+            }
+            Text {
+                text: root.browse-path;
+                font-size: 13px;
+                color: Theme.foreground;
+                opacity: 0.7;
+                overflow: elide;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+        }
+        if root.browse-rows.length == 0: Empty { text: Tr.w.browse-empty; }
+        if root.browse-rows.length > 0: ListView {
+            vertical-stretch: 1;
+            for row[index] in root.browse-rows: Press {
+                height: 52px;
+                label: row.name;
+                clicked => { root.browse-enter(index); }
+                HorizontalLayout {
+                    padding-left: 8px;
+                    spacing: 12px;
+                    VerticalLayout {
+                        alignment: center;
+                        Icon {
+                            width: 22px;
+                            height: 22px;
+                            icon: row.folder ? Icons.folder : Icons.music;
+                            tint: Theme.foreground;
+                        }
+                    }
+                    Text {
+                        text: row.name;
+                        font-size: 15px;
+                        color: Theme.foreground;
+                        vertical-alignment: center;
+                        overflow: elide;
+                        horizontal-stretch: 1;
+                    }
+                }
+            }
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: end;
+            Button {
+                text: Tr.w.cancel;
+                clicked => { root.browse-close(); }
+            }
+            if root.browse-folder: Button {
+                text: Tr.w.browse-pick;
+                primary: true;
+                clicked => { root.browse-pick(); }
+            }
+        }
+    }
+
+    // Таймер сна.
+    if root.sleep-menu-open: Rectangle {
+        background: #00000066;
+        TouchArea {
+            clicked => { root.sleep-menu-open = false; }
+        }
+        SleepMenu {
+            x: (root.width - self.width) / 2;
+            y: root.height - root.inset-bottom - self.height - 24px;
+            hours: root.sleep-hours;
+            minutes: root.sleep-minutes;
+            day: root.sleep-day;
+            left: root.sleep-plan;
+            arc: root.sleep-arc;
+            handle-x: root.sleep-handle-x;
+            handle-y: root.sleep-handle-y;
+            now-x: root.sleep-now-x;
+            now-y: root.sleep-now-y;
+            running: root.sleep-running;
+            after-track: root.sleep-after-track;
+            step(part, delta) => { root.sleep-step(part, delta); }
+            dial(x, y, start) => { root.sleep-dial(x, y, start); }
+            wheel(delta) => { root.sleep-wheel(delta); }
+            start => { root.sleep-start(); }
+            stop => { root.sleep-stop(); }
+            after-track-toggle => { root.sleep-after-toggle(); }
+            close => { root.sleep-menu-open = false; }
+        }
+    }
+}

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Nyanoto
+GenericName=Music Player
+GenericName[ru]=Музыкальный плеер
+Comment=Offline music player
+Comment[ru]=Музыкальный плеер без интернета
+Exec=nyanoto %U
+Icon=nyanoto
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+StartupWMClass=nyanoto

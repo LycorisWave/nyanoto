@@ -1,0 +1,20 @@
+[package]
+name = "nyanoto-library"
+description = "Библиотека nyanoto: сканер, теги, база и поиск"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+# Сведения и теги форматов, которых не знают ни lofty, ни Symphonia (TTA, DSF,
+# DFF), берутся у ядра: разбор этих форматов живёт там.
+nyanoto-core = { path = "../nyanoto-core" }
+lofty.workspace = true
+symphonia.workspace = true
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+nyanoto-testkit = { path = "../nyanoto-testkit" }

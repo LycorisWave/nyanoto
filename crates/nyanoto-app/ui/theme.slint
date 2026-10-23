@@ -1,0 +1,32 @@
+// Цвета темы. Ставит theme.rs, здесь только производные.
+// Встроенные виджеты красятся системой, поэтому свои — в `widgets.slint`.
+
+import { Palette } from "std-widgets.slint";
+
+export global Theme {
+    // Фон страниц.
+    in property <color> background: #1c1c1c;
+    // Боковая полоса, нижняя панель, карточки, наведение на строку.
+    in property <color> surface: #2c2c2c;
+    in property <color> foreground: #ffffff;
+    in property <color> border: #ffffff14;
+    // Фон кнопок и полей.
+    in property <color> control: #ffffff0f;
+    // Основа полноэкранного плеера под размытой обложкой.
+    in property <color> deep: #121212;
+    in property <bool> dark: true;
+    // Акцент: системный (светлая, тёмная, «Тьма») или свой у темы.
+    in property <bool> system-accent: true;
+    in property <color> own-accent: #60cdff;
+    in property <color> own-accent-text: #000000;
+    // Шрифт темы; пусто — системный.
+    in property <string> font-family;
+    // Есть украшение — панели полупрозрачные, нет — сплошные (так дешевле рисовать).
+    in-out property <bool> decor;
+    // Полоса разделов, колонка текста песни.
+    out property <color> panel: self.decor ? self.surface.transparentize(55%) : self.surface.mix(self.background, 0.45);
+    // Карточки разделов настроек.
+    out property <color> card: self.decor ? self.surface.transparentize(35%) : self.surface.mix(self.background, 0.65);
+    out property <brush> accent: self.system-accent ? Palette.accent-background : self.own-accent;
+    out property <brush> accent-foreground: self.system-accent ? Palette.accent-foreground : self.own-accent-text;
+}
